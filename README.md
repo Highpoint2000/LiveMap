@@ -17,6 +17,7 @@ This plugin automatically displays the detected reception (PI code/station ID) i
 ## Important notes: 
 
 - The size and position of the popup window can be set in the script
+- A first display occurs as soon as a first PI code has been detected. The display is further specified when a station ID is received and updated dynamically when changes occur.
 
 
 
