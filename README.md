@@ -1,6 +1,6 @@
 # Live Map for [FM-DX-Webserver](https://github.com/NoobishSVK/fm-dx-webserver)
 
-This plugin shows the detected reception (PI code/station ID) in a map
+This plugin automatically displays the detected reception (PI code/station ID) in a map
 
 ![image](https://github.com/user-attachments/assets/876197ef-ecd9-4a0e-b62f-78003305c25a)
 
