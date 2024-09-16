@@ -10,7 +10,7 @@ This plugin automatically displays the detected reception (PI code/station ID) i
 ## Installation notes:
 
 1. 	Download the last repository as a zip
-2.	Unpack the StreamPlugin.js and the Stream folder with the stream.js into the web server plugins folder (..fm-dx-webserver-main\plugins)
+2.	Unpack the LiveMapPlugin.js and the LiveMap folder with the livemap.js into the web server plugins folder (..fm-dx-webserver-main\plugins)
 3. 	Restart the server
 4. 	Activate the plugin it in the settings
 
