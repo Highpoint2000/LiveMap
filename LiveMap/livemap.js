@@ -1,29 +1,44 @@
 ////////////////////////////////////////////////////////////
-///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V1.0)           ///
-///                                                      ///
-///  by Highpoint                last update: 16.09.24   ///
-///                                                      ///
-///  https://github.com/Highpoint2000/LiveMap            ///
-///                                                      ///
-///                                                      ///
+///                                                      /// 
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V1.0)           /// 
+///                                                      /// 
+///  by Highpoint                last update: 17.09.24   /// 
+///                                                      /// 
+///  https://github.com/Highpoint2000/LiveMap            /// 
+///                                                      /// 
 ////////////////////////////////////////////////////////////
 
-// Define popup size and position as variables
-const popupWidth = 500; // Fixed width size of the popup
-const popupHeight = 500; // Fixed height size of the popup
-const popupLeft = 150; // Fixed left position of the popup
-const popupTop = 400; // Fixed top position of the popup
+// Define iframe size and position as variables
+const iframeWidth = 450; // Fixed width size of the iframe
+const iframeHeight = 450; // Fixed height size of the iframe
+const iframeLeft = 70; // Fixed left position of the iframe
+const iframeTop = 120; // Fixed top position of the iframe
 
 (() => {
+	
     const plugin_version = 'V1.0';
-
     let lastPicode = null;
     let lastFreq = null;
     let lastStationId = null;
     let websocket;
-    let popupWindow;
+    let iframeContainer = null;
     let LiveMapActive = false;
+	
+	const style = document.createElement('style');
+	style.innerHTML = `
+	.fade-out {
+		animation: fadeOut 0.5s forwards;
+	}
+
+	@keyframes fadeOut {
+		from {
+			opacity: 1;
+		}
+		to {
+			opacity: 0;
+		}	
+	}`;
+	document.head.appendChild(style);
 
     async function setupWebSocket() {
         if (!websocket || websocket.readyState === WebSocket.CLOSED) {
@@ -31,7 +46,7 @@ const popupTop = 400; // Fixed top position of the popup
                 websocket = await window.socketPromise;
 
                 websocket.addEventListener("open", () => {
-                    // WebSocket connected.
+                    console.log("WebSocket connected.");
                 });
 
                 websocket.addEventListener("message", handleWebSocketMessage);
@@ -41,7 +56,7 @@ const popupTop = 400; // Fixed top position of the popup
                 });
 
                 websocket.addEventListener("close", (event) => {
-                    // WebSocket connection closed, retry after 5 seconds
+                    console.log("WebSocket connection closed, retrying in 5 seconds.");
                     setTimeout(setupWebSocket, 5000);
                 });
 
@@ -51,14 +66,26 @@ const popupTop = 400; // Fixed top position of the popup
         }
     }
 
-    function openOrUpdatePopup(picode, freq, stationid) {
+    function createIframe() {
+        const iframe = document.createElement('iframe');
+        iframe.width = iframeWidth + 'px';
+        iframe.height = iframeHeight + 'px';
+        iframe.style.position = 'fixed';
+        iframe.style.left = iframeLeft + 'px';
+        iframe.style.top = iframeTop + 'px';
+        iframe.style.zIndex = 1000; // Ensure iframe is on top
+        iframe.style.border = 'none'; // Remove border for clean look
+        return iframe;
+    }
+
+    function openOrUpdateIframe(picode, freq, stationid) {
         if (!LiveMapActive) {
-            console.log("Popup is disabled.");
+            // console.log("Iframe is disabled.");
             return;
         }
 
-        const LAT = localStorage.getItem('qthLatitude');
-        const LON = localStorage.getItem('qthLongitude');
+        const LAT = localStorage.getItem('qthLatitude') || '0'; // Default value if not set
+        const LON = localStorage.getItem('qthLongitude') || '0'; // Default value if not set
 
         let url;
         if (stationid) {
@@ -67,31 +94,40 @@ const popupTop = 400; // Fixed top position of the popup
             url = `https://maps.fmdx.org/#qth=${LAT},${LON}&freq=${freq}&findPi=${picode}`;
         }
 
-        if (freq !== lastFreq && (!stationid || picode !== '?')) {
-            if (popupWindow) {
-                popupWindow.blur();
-                popupWindow.close();
-                popupWindow = null;
-            }
-            lastFreq = freq;
+        // Add a random query parameter to avoid caching issues
+        const uniqueUrl = `${url}&t=${new Date().getTime()}`;
 
-            return;
-        } else if (stationid && stationid !== lastStationId || picode !== '?' && picode !== lastPicode) {
-            lastStationId = stationid;
-            lastPicode = picode;
+        function createAndInsertIframe() {
+           
 
-            // Open or update the popup
-            popupWindow = window.open(url, 'popupWindow', `width=${popupWidth},height=${popupHeight},left=${popupLeft},top=${popupTop}`);
-            if (popupWindow) {
-                try {
-                    popupWindow.focus();
-                } catch (e) {
-                    console.log('Error focusing the popup:', e);
-                }
-            }
+            const newIframe = createIframe();
+            newIframe.src = uniqueUrl;
 
-            lastFreq = freq;
+            // Create a temporary container to hold the new iframe
+            iframeContainer = document.createElement('div');
+            iframeContainer.style.position = 'fixed';
+            iframeContainer.style.left = iframeLeft + 'px';
+            iframeContainer.style.top = iframeTop + 'px';
+            iframeContainer.style.zIndex = 1000; // Ensure iframe is on top
+            iframeContainer.style.opacity = '0'; // Start with invisible
+            iframeContainer.style.transition = 'opacity 0.5s'; // Smooth transition
+            iframeContainer.appendChild(newIframe);
+            document.body.appendChild(iframeContainer);
+
+            // Make iframe visible after a short delay
+            setTimeout(() => {
+                iframeContainer.style.opacity = '1';
+            }, 500); // Delay to ensure the iframe starts loading
         }
+		
+        if  (freq === '0.0' || (picode !== '?' && picode !== lastPicode) || (stationid && stationid !== lastStationId)) {
+            createAndInsertIframe(); // Always create and insert the new iframe
+
+            lastPicode = picode;
+            lastStationId = stationid;
+			lastFreq = freq; // Update last frequency
+        }
+       
     }
 
     async function handleWebSocketMessage(event) {
@@ -109,7 +145,7 @@ const popupTop = 400; // Fixed top position of the popup
                 stationid = data.txInfo.id;
             }
 
-            openOrUpdatePopup(picode, freq, stationid);
+            openOrUpdateIframe(picode, freq, stationid);
 
         } catch (error) {
             console.error("Error processing the message:", error);
@@ -174,24 +210,43 @@ const popupTop = 400; // Fixed top position of the popup
                 LiveMapButton.classList.add('bg-color-4');
                 console.log("LIVEMAP activated.");
 
-                lastPicode = null;
-                lastFreq = null;
+                lastPicode = '?'; // Set picode to '?' initially
+                lastFreq = '0.0';
                 lastStationId = null;
+				
+                if (iframeContainer) {
+                    iframeContainer.style.display = 'block'; // Make iframe visible again
+                } else {				
+                    openOrUpdateIframe(lastPicode, lastFreq, lastStationId); // Create and insert the iframe
+                }
 
-                console.log("All values (picode, freq, stationid) have been reset.");
-                openOrUpdatePopup(lastPicode, lastFreq, lastStationId);
+                // console.log("All values (picode, freq, stationid) have been reset.");
             } else {
                 LiveMapButton.classList.remove('bg-color-4');
                 LiveMapButton.classList.add('bg-color-2');
                 console.log("LIVEMAP deactivated.");
 
-                if (popupWindow) {
-                    popupWindow.blur();
-                    popupWindow.close();
-                    popupWindow = null;
-                }
-            }
-        };
+				if (iframeContainer) {
+					
+					const iframes = document.querySelectorAll('iframe');
+					iframes.forEach(iframe => {
+					iframe.style.opacity = '0'; // Oder benutze iframe.parentNode.removeChild(iframe);
+						iframe.style.transition = 'opacity 0.5s'; // Füge eine sanfte Übergangsanimation hinzu
+					});
+					
+					// Füge eine Klasse hinzu, um das Abblenden zu starten
+					iframeContainer.classList.add('fade-out');
+
+					// Warte, bis die Abblendanimation abgeschlossen ist
+					iframeContainer.addEventListener('animationend', () => {
+						document.body.removeChild(iframeContainer);
+						iframeContainer = null; // Setze iframeContainer zurück
+					});
+					
+
+				}
+			}
+		};
 
         if (buttonWrapper) {
             LiveMapButton.style.marginLeft = '5px';
@@ -225,5 +280,4 @@ const popupTop = 400; // Fixed top position of the popup
     document.addEventListener('DOMContentLoaded', function() {
         setTimeout(initializeLiveMapButton, 1000);
     });
-
 })();
