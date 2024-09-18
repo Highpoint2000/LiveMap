@@ -1,44 +1,58 @@
 ////////////////////////////////////////////////////////////
 ///                                                      /// 
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V1.0)           /// 
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V1.1)           /// 
 ///                                                      /// 
-///  by Highpoint                last update: 17.09.24   /// 
+///  by Highpoint                last update: 18.09.24   /// 
 ///                                                      /// 
 ///  https://github.com/Highpoint2000/LiveMap            /// 
 ///                                                      /// 
 ////////////////////////////////////////////////////////////
 
 // Define iframe size and position as variables
-const iframeWidth = 450; // Fixed width size of the iframe
-const iframeHeight = 450; // Fixed height size of the iframe
-const iframeLeft = 70; // Fixed left position of the iframe
-const iframeTop = 120; // Fixed top position of the iframe
+let iframeWidth = parseInt(localStorage.getItem('iframeWidth')) || 450; // Restore from localStorage or use default
+let iframeHeight = parseInt(localStorage.getItem('iframeHeight')) || 450; // Restore from localStorage or use default
+let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 70; // Restore from localStorage or use default
+let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore from localStorage or use default
 
 (() => {
-	
-    const plugin_version = 'V1.0';
+    const plugin_version = 'V1.1';
     let lastPicode = null;
     let lastFreq = null;
     let lastStationId = null;
     let websocket;
     let iframeContainer = null;
     let LiveMapActive = false;
-	
-	const style = document.createElement('style');
-	style.innerHTML = `
-	.fade-out {
-		animation: fadeOut 0.5s forwards;
-	}
 
-	@keyframes fadeOut {
-		from {
-			opacity: 1;
-		}
-		to {
-			opacity: 0;
-		}	
-	}`;
-	document.head.appendChild(style);
+    const style = document.createElement('style');
+    style.innerHTML = `
+    .fade-out {
+        animation: fadeOut 0.5s forwards;
+    }
+
+    @keyframes fadeOut {
+        from {
+            opacity: 1;
+        }
+        to {
+            opacity: 0;
+        }    
+    }
+
+    #movableDiv {
+        border-radius: 15px; /* Rounded corners */
+        position: fixed;
+        cursor: move;
+        overflow: hidden; /* Prevents content from exceeding rounded corners */
+        display: flex; /* Activate flexbox */
+        justify-content: center; /* Horizontal centering */
+        align-items: center; /* Vertical centering */
+    }
+
+    #movableDiv iframe {
+        border-radius: 5px; /* Rounded corners for the iframe */
+    }
+    `;
+    document.head.appendChild(style);
 
     async function setupWebSocket() {
         if (!websocket || websocket.readyState === WebSocket.CLOSED) {
@@ -70,17 +84,12 @@ const iframeTop = 120; // Fixed top position of the iframe
         const iframe = document.createElement('iframe');
         iframe.width = iframeWidth + 'px';
         iframe.height = iframeHeight + 'px';
-        iframe.style.position = 'fixed';
-        iframe.style.left = iframeLeft + 'px';
-        iframe.style.top = iframeTop + 'px';
-        iframe.style.zIndex = 1000; // Ensure iframe is on top
-        iframe.style.border = 'none'; // Remove border for clean look
+        iframe.style.border = 'none'; // Remove border for a clean look
         return iframe;
     }
 
     function openOrUpdateIframe(picode, freq, stationid) {
         if (!LiveMapActive) {
-            // console.log("Iframe is disabled.");
             return;
         }
 
@@ -94,40 +103,49 @@ const iframeTop = 120; // Fixed top position of the iframe
             url = `https://maps.fmdx.org/#qth=${LAT},${LON}&freq=${freq}&findPi=${picode}`;
         }
 
-        // Add a random query parameter to avoid caching issues
         const uniqueUrl = `${url}&t=${new Date().getTime()}`;
 
         function createAndInsertIframe() {
-           
-
             const newIframe = createIframe();
             newIframe.src = uniqueUrl;
 
-            // Create a temporary container to hold the new iframe
-            iframeContainer = document.createElement('div');
-            iframeContainer.style.position = 'fixed';
-            iframeContainer.style.left = iframeLeft + 'px';
-            iframeContainer.style.top = iframeTop + 'px';
-            iframeContainer.style.zIndex = 1000; // Ensure iframe is on top
-            iframeContainer.style.opacity = '0'; // Start with invisible
-            iframeContainer.style.transition = 'opacity 0.5s'; // Smooth transition
-            iframeContainer.appendChild(newIframe);
-            document.body.appendChild(iframeContainer);
+            // Create or show the iframeContainer at the last position
+            if (!iframeContainer) {
+                iframeContainer = document.createElement('div');
+                iframeContainer.id = 'movableDiv';
+                iframeContainer.classList.add('bg-color-2');
+                iframeContainer.style.width = (iframeWidth + 20) + 'px'; // Account for 10px border
+                iframeContainer.style.height = (iframeHeight + 20) + 'px'; // Account for 10px border
+                iframeContainer.style.left = iframeLeft + 'px';
+                iframeContainer.style.top = iframeTop + 'px';
+                iframeContainer.style.position = 'fixed';
+                iframeContainer.style.opacity = '0'; // Start invisible
+                iframeContainer.style.transition = 'opacity 0.5s'; // Smooth transition
+                iframeContainer.appendChild(newIframe);
+                document.body.appendChild(iframeContainer);
+                addDragFunctionality(iframeContainer);
+                addResizeFunctionality(iframeContainer); // Add resize functionality
+                iframeContainer.style.opacity = '1'; // Fade in the container
+                newIframe.style.visibility = 'visible'; // Make the iframe visible
+            } else {
+                // Make the iframe visible first
+                iframeContainer.appendChild(newIframe);
 
-            // Make iframe visible after a short delay
-            setTimeout(() => {
-                iframeContainer.style.opacity = '1';
-            }, 500); // Delay to ensure the iframe starts loading
+                // Remove old iframes after the new iframe is visible
+                const existingIframes = iframeContainer.querySelectorAll('iframe:not(:last-child)');
+                existingIframes.forEach(iframe => {
+                    iframe.parentNode.removeChild(iframe);
+                });
+            }
         }
-		
-        if  (freq === '0.0' || (picode !== '?' && picode !== lastPicode) || (stationid && stationid !== lastStationId)) {
+
+        if (freq === '0.0' || (picode !== '?' && picode !== lastPicode) || (stationid && stationid !== lastStationId)) {
             createAndInsertIframe(); // Always create and insert the new iframe
 
             lastPicode = picode;
             lastStationId = stationid;
-			lastFreq = freq; // Update last frequency
+            lastFreq = freq; // Update last frequency
         }
-       
     }
 
     async function handleWebSocketMessage(event) {
@@ -188,6 +206,84 @@ const iframeTop = 120; // Fixed top position of the iframe
         }
     }
 
+    function addDragFunctionality(element) {
+        let offsetX = 0, offsetY = 0, startX = 0, startY = 0;
+
+        element.onmousedown = function(e) {
+            // Check if the click is not on the resize element
+            if (e.target.id !== 'resizer') {
+                e.preventDefault();
+                startX = e.clientX;
+                startY = e.clientY;
+                document.onmousemove = onMouseMove;
+                document.onmouseup = onMouseUp;
+            }
+        };
+
+        function onMouseMove(e) {
+            offsetX = startX - e.clientX;
+            offsetY = startY - e.clientY;
+            startX = e.clientX;
+            startY = e.clientY;
+            element.style.left = (element.offsetLeft - offsetX) + "px";
+            element.style.top = (element.offsetTop - offsetY) + "px";
+        }
+
+        function onMouseUp() {
+            // Save the new position
+            localStorage.setItem('iframeLeft', element.style.left);
+            localStorage.setItem('iframeTop', element.style.top);
+            document.onmousemove = null;
+            document.onmouseup = null;
+        }
+    }
+
+    function addResizeFunctionality(element) {
+        const resizer = document.createElement('div');
+        resizer.id = 'resizer'; // Add ID for the resize element
+        resizer.style.width = '10px';
+        resizer.style.height = '10px';
+        resizer.style.background = 'blue'; // Color for visibility
+        resizer.style.cursor = 'nwse-resize';
+        resizer.style.position = 'absolute';
+        resizer.style.right = '0';
+        resizer.style.bottom = '0';
+        element.appendChild(resizer);
+
+        resizer.addEventListener('mousedown', initResize);
+
+        function initResize(e) {
+            e.preventDefault();
+            window.addEventListener('mousemove', resize);
+            window.addEventListener('mouseup', stopResize);
+        }
+
+        function resize(e) {
+            const newWidth = e.clientX - element.getBoundingClientRect().left;
+            const newHeight = e.clientY - element.getBoundingClientRect().top;
+            if (newWidth > 100 && newHeight > 100) { // Minimum size
+                element.style.width = newWidth + 'px';
+                element.style.height = newHeight + 'px';
+                const iframe = element.querySelector('iframe');
+                if (iframe) {
+                    iframe.width = (newWidth - 20) + 'px'; // Adjust for border
+                    iframe.height = (newHeight - 20) + 'px'; // Adjust for border
+                }
+            }
+        }
+
+        function stopResize() {
+            const newWidth = parseInt(element.style.width);
+            const newHeight = parseInt(element.style.height);
+            localStorage.setItem('iframeWidth', newWidth); // Save new width
+            localStorage.setItem('iframeHeight', newHeight); // Save new height
+            iframeWidth = newWidth - 20; // Update width variable for iframe
+            iframeHeight = newHeight - 20; // Update height variable for iframe
+            window.removeEventListener('mousemove', resize);
+            window.removeEventListener('mouseup', stopResize);
+        }
+    }
+
     function initializeLiveMapButton() {
         const buttonWrapper = document.getElementById('button-wrapper');
         const LiveMapButton = document.createElement('button');
@@ -213,40 +309,44 @@ const iframeTop = 120; // Fixed top position of the iframe
                 lastPicode = '?'; // Set picode to '?' initially
                 lastFreq = '0.0';
                 lastStationId = null;
-				
-                if (iframeContainer) {
-                    iframeContainer.style.display = 'block'; // Make iframe visible again
-                } else {				
-                    openOrUpdateIframe(lastPicode, lastFreq, lastStationId); // Create and insert the iframe
-                }
 
-                // console.log("All values (picode, freq, stationid) have been reset.");
+                // Create or show the iframeContainer at the last position
+                if (!iframeContainer) {
+                    openOrUpdateIframe(lastPicode, lastFreq, lastStationId); // Create and insert the iframe
+                } else {
+                    iframeContainer.style.display = 'block'; // Make iframe visible again
+                    iframeContainer.style.left = iframeLeft + 'px'; // Restore last left position
+                    iframeContainer.style.top = iframeTop + 'px'; // Restore last top position
+                    iframeContainer.style.width = (iframeWidth + 20) + 'px'; // Restore last width
+                    iframeContainer.style.height = (iframeHeight + 20) + 'px'; // Restore last height
+                }
             } else {
                 LiveMapButton.classList.remove('bg-color-4');
                 LiveMapButton.classList.add('bg-color-2');
                 console.log("LIVEMAP deactivated.");
 
-				if (iframeContainer) {
-					
-					const iframes = document.querySelectorAll('iframe');
-					iframes.forEach(iframe => {
-					iframe.style.opacity = '0'; // Oder benutze iframe.parentNode.removeChild(iframe);
-						iframe.style.transition = 'opacity 0.5s'; // Füge eine sanfte Übergangsanimation hinzu
-					});
-					
-					// Füge eine Klasse hinzu, um das Abblenden zu starten
-					iframeContainer.classList.add('fade-out');
+                if (iframeContainer) {
+                    // Save the position before removing
+                    iframeLeft = parseInt(iframeContainer.style.left);
+                    iframeTop = parseInt(iframeContainer.style.top);
+                    localStorage.setItem('iframeLeft', iframeLeft);
+                    localStorage.setItem('iframeTop', iframeTop);
 
-					// Warte, bis die Abblendanimation abgeschlossen ist
-					iframeContainer.addEventListener('animationend', () => {
-						document.body.removeChild(iframeContainer);
-						iframeContainer = null; // Setze iframeContainer zurück
-					});
-					
+                    const iframes = document.querySelectorAll('iframe');
+                    iframes.forEach(iframe => {
+                        iframe.style.opacity = '0'; // Or use iframe.parentNode.removeChild(iframe);
+                        iframe.style.transition = 'opacity 0.5s'; // Add a smooth transition animation
+                    });
 
-				}
-			}
-		};
+                    iframeContainer.classList.add('fade-out');
+
+                    iframeContainer.addEventListener('animationend', () => {
+                        document.body.removeChild(iframeContainer);
+                        iframeContainer = null; // Reset iframeContainer
+                    });
+                }
+            }
+        };
 
         if (buttonWrapper) {
             LiveMapButton.style.marginLeft = '5px';
