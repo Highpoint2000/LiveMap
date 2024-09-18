@@ -5,8 +5,10 @@ This plugin shows the detected reception (PI code/station ID) in realtime on a m
 ![image](https://github.com/user-attachments/assets/876197ef-ecd9-4a0e-b62f-78003305c25a)
 
 
+## v1.1
 
-## v1.0
+- The position and size of the window is now variable
+- Problems with using the web server button have been fixed
 
 ## Installation notes:
 
@@ -17,8 +19,12 @@ This plugin shows the detected reception (PI code/station ID) in realtime on a m
 
 ## Important notes: 
 
-- The size and position of the popup window can be set in the script
 - A first display occurs as soon as a first PI code has been detected. The display is further specified when a station ID is received and updated dynamically when changes occur.
+- The position of the pop-up window can be changed by pressing the border and moving the window. By pressing and dragging the blue triangle in the lower right corner, the size of the window can be adjusted.
+
+## History:
 
 
+### v1.0
 
+- first edition
