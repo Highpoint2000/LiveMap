@@ -1,6 +1,6 @@
 # Live Map for [FM-DX-Webserver](https://github.com/NoobishSVK/fm-dx-webserver)
 
-This plugin shows the detected reception (PI code/station ID) in realtime on a map
+This browser extension plugin links frequency databases or log files (e.g. fmdx.pl, fmscan.org, db.wtfda.org and others) to the FMDX web server so that they can access the frequency directly.
 
 ![image](https://github.com/user-attachments/assets/60a35ffe-cf9b-40ab-b4bb-67b4c268b265)
 
