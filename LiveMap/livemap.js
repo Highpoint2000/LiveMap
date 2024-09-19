@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////
 ///                                                      /// 
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V1.1)           /// 
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V1.2)           /// 
 ///                                                      /// 
-///  by Highpoint                last update: 18.09.24   /// 
+///  by Highpoint                last update: 19.09.24   /// 
 ///                                                      /// 
 ///  https://github.com/Highpoint2000/LiveMap            /// 
 ///                                                      /// 
@@ -15,7 +15,7 @@ let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 70; // Restore 
 let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore from localStorage or use default
 
 (() => {
-    const plugin_version = 'V1.1';
+    const plugin_version = 'V1.2';
     let lastPicode = null;
     let lastFreq = null;
     let lastStationId = null;
@@ -83,12 +83,29 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
     function createIframe() {
         const iframe = document.createElement('iframe');
         iframe.width = iframeWidth + 'px';
-        iframe.height = iframeHeight + 'px';
+        iframe.height = (iframeHeight) + 'px'; // Adjust height to make space for header
         iframe.style.border = 'none'; // Remove border for a clean look
+        iframe.style.position = 'relative'; // Relative positioning for the header
+		iframe.style.paddingTop = '30px'; // Füge Padding oben hinzu
         return iframe;
     }
 
-    function openOrUpdateIframe(picode, freq, stationid) {
+    function createIframeHeader(picode, freq, stationid, station, city, distance, ps, itu) {
+        const header = document.createElement('div');
+        header.style.backgroundColor = 'bg-color-2';
+        header.style.color = 'white';
+        header.style.padding = '10px';
+        header.style.position = 'absolute';
+        header.style.top = '0';
+        header.style.left = '0';
+        header.style.width = '100%';
+        header.style.zIndex = '1'; // Make sure it appears above other elements
+        // header.innerHTML = `${freq} MHz | ${picode} | ${station} from ${city} [${distance} km]`;
+        return header;
+    }
+
+    function openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu) {
+		
         if (!LiveMapActive) {
             return;
         }
@@ -97,16 +114,20 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
         const LON = localStorage.getItem('qthLongitude') || '0'; // Default value if not set
 
         let url;
+
         if (stationid) {
             url = `https://maps.fmdx.org/#qth=${LAT},${LON}&id=${stationid}&findId=*`;
-        } else {
+        } else if (picode !== '?') {
             url = `https://maps.fmdx.org/#qth=${LAT},${LON}&freq=${freq}&findPi=${picode}`;
+        } else {
+            url = `https://maps.fmdx.org/#lat=${LAT}&lon=${LON}&r=150`;
         }
 
         const uniqueUrl = `${url}&t=${new Date().getTime()}`;
 
         function createAndInsertIframe() {
             const newIframe = createIframe();
+            const header = createIframeHeader(picode, freq, stationid, station, city, distance, ps, itu); // Create the header
             newIframe.src = uniqueUrl;
 
             // Create or show the iframeContainer at the last position
@@ -121,6 +142,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
                 iframeContainer.style.position = 'fixed';
                 iframeContainer.style.opacity = '0'; // Start invisible
                 iframeContainer.style.transition = 'opacity 0.5s'; // Smooth transition
+                iframeContainer.appendChild(header); // Add the header to the container
                 iframeContainer.appendChild(newIframe);
                 document.body.appendChild(iframeContainer);
                 addDragFunctionality(iframeContainer);
@@ -128,8 +150,16 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
                 iframeContainer.style.opacity = '1'; // Fade in the container
                 newIframe.style.visibility = 'visible'; // Make the iframe visible
             } else {
-                // Make the iframe visible first
                 iframeContainer.appendChild(newIframe);
+				
+				 const existingHeader = iframeContainer.querySelector('div');
+					if (existingHeader) {
+				         if (!stationid) {
+							existingHeader.innerHTML = `${freq} MHz | ${picode}`;
+						} else {
+							existingHeader.innerHTML = `${freq} MHz | ${picode} | ${station} from ${city} [${itu}] [${distance} km]`;
+						}
+				   }
 
                 // Remove old iframes after the new iframe is visible
                 const existingIframes = iframeContainer.querySelectorAll('iframe:not(:last-child)');
@@ -155,6 +185,9 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
             const freq = data.freq;
             const itu = data.txInfo.itu;
             const city = data.txInfo.city;
+			const station = data.txInfo.tx;
+			const distance = data.txInfo.dist;
+			const ps = data.ps;
             let stationid;
 
             if (itu === "POL") {
@@ -163,7 +196,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
                 stationid = data.txInfo.id;
             }
 
-            openOrUpdateIframe(picode, freq, stationid);
+            openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu);
 
         } catch (error) {
             console.error("Error processing the message:", error);
