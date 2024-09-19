@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////
 ///                                                      /// 
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V1.2)           /// 
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V1.2a)          /// 
 ///                                                      /// 
 ///  by Highpoint                last update: 19.09.24   /// 
 ///                                                      /// 
@@ -80,6 +80,43 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
         }
     }
 
+function createCloseButton() {
+    const closeButton = document.createElement('div');
+    closeButton.innerHTML = 'x';
+    closeButton.style.position = 'absolute';
+    closeButton.style.top = '0px';
+    closeButton.style.right = '8px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.color = 'white';
+	closeButton.classList.add('bg-color-2');
+    closeButton.style.padding = '4px';
+	closeButton.style.paddingLeft = '15px';
+    closeButton.style.zIndex = '10'; 
+	closeButton.style.fontSize = '20px';
+
+    closeButton.onclick = () => {
+        // Fade-out effect before removing the iframe
+        iframeContainer.classList.add('fade-out'); // Add fade-out class
+        iframeContainer.addEventListener('animationend', () => {
+            // After the fade-out animation is done, remove iframe and container
+            if (iframeContainer) {
+                iframeContainer.remove();
+                iframeContainer = null;
+            }
+
+            // Deactivate LiveMap button
+            const LiveMapButton = document.getElementById('LIVEMAP-on-off');
+            if (LiveMapButton) {
+                LiveMapButton.classList.remove('bg-color-4');
+                LiveMapButton.classList.add('bg-color-2');
+                LiveMapActive = false;
+            }
+        });
+    };
+
+    return closeButton;
+}
+
     function createIframe() {
         const iframe = document.createElement('iframe');
         iframe.width = iframeWidth + 'px';
@@ -103,8 +140,8 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
         // header.innerHTML = `${freq} MHz | ${picode} | ${station} from ${city} [${distance} km]`;
         return header;
     }
-
-    function openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu) {
+	
+	function openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu) {
 		
         if (!LiveMapActive) {
             return;
@@ -125,49 +162,51 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
 
         const uniqueUrl = `${url}&t=${new Date().getTime()}`;
 
-        function createAndInsertIframe() {
-            const newIframe = createIframe();
-            const header = createIframeHeader(picode, freq, stationid, station, city, distance, ps, itu); // Create the header
-            newIframe.src = uniqueUrl;
+function createAndInsertIframe() {
+    const newIframe = createIframe();
+    const header = createIframeHeader(picode, freq, stationid, station, city, distance, ps, itu); // Create the header
+    const closeButton = createCloseButton(); // Create the close button
+    newIframe.src = uniqueUrl;
 
-            // Create or show the iframeContainer at the last position
-            if (!iframeContainer) {
-                iframeContainer = document.createElement('div');
-                iframeContainer.id = 'movableDiv';
-                iframeContainer.classList.add('bg-color-2');
-                iframeContainer.style.width = (iframeWidth + 20) + 'px'; // Account for 10px border
-                iframeContainer.style.height = (iframeHeight + 20) + 'px'; // Account for 10px border
-                iframeContainer.style.left = iframeLeft + 'px';
-                iframeContainer.style.top = iframeTop + 'px';
-                iframeContainer.style.position = 'fixed';
-                iframeContainer.style.opacity = '0'; // Start invisible
-                iframeContainer.style.transition = 'opacity 0.5s'; // Smooth transition
-                iframeContainer.appendChild(header); // Add the header to the container
-                iframeContainer.appendChild(newIframe);
-                document.body.appendChild(iframeContainer);
-                addDragFunctionality(iframeContainer);
-                addResizeFunctionality(iframeContainer); // Add resize functionality
-                iframeContainer.style.opacity = '1'; // Fade in the container
-                newIframe.style.visibility = 'visible'; // Make the iframe visible
+    // Create or show the iframeContainer at the last position
+    if (!iframeContainer) {
+        iframeContainer = document.createElement('div');
+        iframeContainer.id = 'movableDiv';
+        iframeContainer.classList.add('bg-color-2');
+        iframeContainer.style.width = (iframeWidth + 20) + 'px'; // Account for 10px border
+        iframeContainer.style.height = (iframeHeight + 20) + 'px'; // Account for 10px border
+        iframeContainer.style.left = iframeLeft + 'px';
+        iframeContainer.style.top = iframeTop + 'px';
+        iframeContainer.style.position = 'fixed';
+        iframeContainer.style.opacity = '0'; // Start invisible
+        iframeContainer.style.transition = 'opacity 0.5s'; // Smooth transition
+        iframeContainer.appendChild(header); // Add the header to the container
+        iframeContainer.appendChild(closeButton); // Add the close button
+        iframeContainer.appendChild(newIframe);
+        document.body.appendChild(iframeContainer);
+        addDragFunctionality(iframeContainer);
+        addResizeFunctionality(iframeContainer); // Add resize functionality
+        iframeContainer.style.opacity = '1'; // Fade in the container
+        newIframe.style.visibility = 'visible'; // Make the iframe visible
+    } else {
+        iframeContainer.appendChild(newIframe);
+        
+        const existingHeader = iframeContainer.querySelector('div');
+        if (existingHeader) {
+            if (!stationid) {
+                existingHeader.innerHTML = `${freq} MHz | ${picode}`;
             } else {
-                iframeContainer.appendChild(newIframe);
-				
-				 const existingHeader = iframeContainer.querySelector('div');
-					if (existingHeader) {
-				         if (!stationid) {
-							existingHeader.innerHTML = `${freq} MHz | ${picode}`;
-						} else {
-							existingHeader.innerHTML = `${freq} MHz | ${picode} | ${station} from ${city} [${itu}] [${distance} km]`;
-						}
-				   }
-
-                // Remove old iframes after the new iframe is visible
-                const existingIframes = iframeContainer.querySelectorAll('iframe:not(:last-child)');
-                existingIframes.forEach(iframe => {
-                    iframe.parentNode.removeChild(iframe);
-                });
+                existingHeader.innerHTML = `${freq} MHz | ${picode} | ${station} from ${city} [${itu}] [${distance} km]`;
             }
         }
+
+        // Remove old iframes after the new iframe is visible
+        const existingIframes = iframeContainer.querySelectorAll('iframe:not(:last-child)');
+        existingIframes.forEach(iframe => {
+            iframe.parentNode.removeChild(iframe);
+        });
+    }
+}
 
         if (freq === '0.0' || (picode !== '?' && picode !== lastPicode) || (stationid && stationid !== lastStationId)) {
             createAndInsertIframe(); // Always create and insert the new iframe
