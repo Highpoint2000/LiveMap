@@ -6,10 +6,9 @@ This browser extension plugin links frequency databases or log files (e.g. fmdx.
 
 
 
-## v1.1
+## v1.2
 
-- The position and size of the window is now variable
-- Problems with using the web server button have been fixed
+- Enlarged header with additional log information
 
 ## Installation notes:
 
@@ -20,11 +19,16 @@ This browser extension plugin links frequency databases or log files (e.g. fmdx.
 
 ## Important notes: 
 
+- In order to display the position correctly, your own coordinates must be entered in the web server!
 - A first display occurs as soon as a first PI code has been detected. The display is further specified when a station ID is received and updated dynamically when changes occur.
 - The position of the pop-up window can be changed by pressing the border and moving the window. By pressing and dragging the blue triangle in the lower right corner, the size of the window can be adjusted.
 
 ## History:
 
+### v1.1
+
+- The position and size of the window is now variable
+- Problems with using the web server button have been fixed
 
 ### v1.0
 
