@@ -5,12 +5,9 @@ This plugin shows the detected reception (PI code/station ID) in realtime on a m
 ![image](https://github.com/user-attachments/assets/668e1909-7548-4125-b962-05a1795a4f14)
 
 
+## v1.2a
 
-
-
-## v1.2
-
-- Enlarged header with additional log information
+- Insert close X at the top-right corner
 
 ## Installation notes:
 
@@ -26,6 +23,10 @@ This plugin shows the detected reception (PI code/station ID) in realtime on a m
 - The position of the pop-up window can be changed by pressing the border and moving the window. By pressing and dragging the blue triangle in the lower right corner, the size of the window can be adjusted.
 
 ## History:
+
+### v1.2
+
+- Enlarged header with additional log information
 
 ### v1.1
 
