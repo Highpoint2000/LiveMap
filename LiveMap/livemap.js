@@ -95,6 +95,13 @@ function createCloseButton() {
 	closeButton.style.fontSize = '20px';
 
     closeButton.onclick = () => {
+		
+        // Save the position before removing
+        iframeLeft = parseInt(iframeContainer.style.left);
+        iframeTop = parseInt(iframeContainer.style.top);
+        localStorage.setItem('iframeLeft', iframeLeft);
+        localStorage.setItem('iframeTop', iframeTop);
+		
         // Fade-out effect before removing the iframe
         iframeContainer.classList.add('fade-out'); // Add fade-out class
         iframeContainer.addEventListener('animationend', () => {
