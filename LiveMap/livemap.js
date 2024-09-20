@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////
 ///                                                      /// 
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V1.2a)          /// 
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.0 BETA)      /// 
 ///                                                      /// 
 ///  by Highpoint                last update: 19.09.24   /// 
 ///                                                      /// 
@@ -15,13 +15,23 @@ let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 70; // Restore 
 let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore from localStorage or use default
 
 (() => {
-    const plugin_version = 'V1.2';
+    const plugin_version = 'V2.0 BETA';
     let lastPicode = null;
     let lastFreq = null;
     let lastStationId = null;
     let websocket;
     let iframeContainer = null;
     let LiveMapActive = false;
+    let picode;
+    let freq;
+    let itu;
+    let city;
+    let station;
+    let distance;
+    let ps;
+    let stationid;
+    let radius;
+    let foundPI;	
 
     const style = document.createElement('style');
     style.innerHTML = `
@@ -80,61 +90,60 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
         }
     }
 
-function createCloseButton() {
-    const closeButton = document.createElement('div');
-    closeButton.innerHTML = 'x';
-    closeButton.style.position = 'absolute';
-    closeButton.style.top = '0px';
-    closeButton.style.right = '8px';
-    closeButton.style.cursor = 'pointer';
-    closeButton.style.color = 'white';
-	closeButton.classList.add('bg-color-2');
-    closeButton.style.padding = '4px';
-	closeButton.style.paddingLeft = '15px';
-    closeButton.style.zIndex = '10'; 
-	closeButton.style.fontSize = '20px';
+    function createCloseButton() {
+        const closeButton = document.createElement('div');
+        closeButton.innerHTML = 'x';
+        closeButton.style.position = 'absolute';
+        closeButton.style.top = '0px';
+        closeButton.style.right = '8px';
+        closeButton.style.cursor = 'pointer';
+        closeButton.style.color = 'white';
+        closeButton.classList.add('bg-color-2');
+        closeButton.style.padding = '4px';
+        closeButton.style.paddingLeft = '15px';
+        closeButton.style.zIndex = '10'; 
+        closeButton.style.fontSize = '20px';
 
-    closeButton.onclick = () => {
-		
-        // Save the position before removing
-        iframeLeft = parseInt(iframeContainer.style.left);
-        iframeTop = parseInt(iframeContainer.style.top);
-        localStorage.setItem('iframeLeft', iframeLeft);
-        localStorage.setItem('iframeTop', iframeTop);
-		
-        // Fade-out effect before removing the iframe
-        iframeContainer.classList.add('fade-out'); // Add fade-out class
-        iframeContainer.addEventListener('animationend', () => {
-            // After the fade-out animation is done, remove iframe and container
-            if (iframeContainer) {
-                iframeContainer.remove();
-                iframeContainer = null;
-            }
+        closeButton.onclick = () => {
+            // Save the position before removing
+            iframeLeft = parseInt(iframeContainer.style.left);
+            iframeTop = parseInt(iframeContainer.style.top);
+            localStorage.setItem('iframeLeft', iframeLeft);
+            localStorage.setItem('iframeTop', iframeTop);
+            
+            // Fade-out effect before removing the iframe
+            iframeContainer.classList.add('fade-out'); // Add fade-out class
+            iframeContainer.addEventListener('animationend', () => {
+                // After the fade-out animation is done, remove iframe and container
+                if (iframeContainer) {
+                    iframeContainer.remove();
+                    iframeContainer = null;
+                }
 
-            // Deactivate LiveMap button
-            const LiveMapButton = document.getElementById('LIVEMAP-on-off');
-            if (LiveMapButton) {
-                LiveMapButton.classList.remove('bg-color-4');
-                LiveMapButton.classList.add('bg-color-2');
-                LiveMapActive = false;
-            }
-        });
-    };
+                // Deactivate LiveMap button
+                const LiveMapButton = document.getElementById('LIVEMAP-on-off');
+                if (LiveMapButton) {
+                    LiveMapButton.classList.remove('bg-color-4');
+                    LiveMapButton.classList.add('bg-color-2');
+                    LiveMapActive = false;
+                }
+            });
+        };
 
-    return closeButton;
-}
+        return closeButton;
+    }
 
     function createIframe() {
         const iframe = document.createElement('iframe');
-        iframe.width = iframeWidth + 'px';
-        iframe.height = (iframeHeight) + 'px'; // Adjust height to make space for header
+        iframe.width = (iframeWidth - 20) + 'px';  // Adjust for border size
+        iframe.height = (iframeHeight - 85) + 'px';  // Adjust for header and footer size
         iframe.style.border = 'none'; // Remove border for a clean look
-        iframe.style.position = 'relative'; // Relative positioning for the header
-		iframe.style.paddingTop = '30px'; // Füge Padding oben hinzu
+        iframe.style.position = 'relative'; // Keep iframe inside the container
+        iframe.style.top = '0px'; 
         return iframe;
     }
 
-    function createIframeHeader(picode, freq, stationid, station, city, distance, ps, itu) {
+    function createIframeHeader() {
         const header = document.createElement('div');
         header.style.backgroundColor = 'bg-color-2';
         header.style.color = 'white';
@@ -144,97 +153,304 @@ function createCloseButton() {
         header.style.left = '0';
         header.style.width = '100%';
         header.style.zIndex = '1'; // Make sure it appears above other elements
-        // header.innerHTML = `${freq} MHz | ${picode} | ${station} from ${city} [${distance} km]`;
         return header;
     }
 	
-	function openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu) {
-		
-        if (!LiveMapActive) {
-            return;
+    function createIframeFooter() {
+        const footer = document.createElement('div');
+        footer.style.backgroundColor = 'bg-color-2'; 
+        footer.style.color = 'white';
+        footer.style.padding = '10px';
+        footer.style.position = 'absolute';
+        footer.style.bottom = '0';
+        footer.style.left = '0';
+        footer.style.width = '100%';
+        footer.style.zIndex = '1'; 
+        footer.style.display = 'flex'; 
+        footer.style.justifyContent = 'center'; 
+
+        radius = localStorage.getItem('selectedRadius') || '';
+
+        function updateradius(value) {
+            radius = value;
+            localStorage.setItem('selectedRadius', radius); 
+            lastFreq = null;
+
+            openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, radius);
         }
 
-        const LAT = localStorage.getItem('qthLatitude') || '0'; // Default value if not set
-        const LON = localStorage.getItem('qthLongitude') || '0'; // Default value if not set
+        const radioButtonsHTML = `
+            <label style="margin-right: 10px;">
+                <input type="radio" name="radius" value="150">
+                150 km
+            </label>
+            <label style="margin-right: 10px;">
+                <input type="radio" name="radius" value="300">
+                300 km
+            </label>
+            <label style="margin-right: 10px;">
+                <input type="radio" name="radius" value="700">
+                700 km
+            </label>
+            <label style="margin-right: 10px;">
+                <input type="radio" name="radius" value="1000">
+                1000 km
+            </label>
+            <label style="margin-right: 10px;">
+                <input type="radio" name="radius" value="none">
+                none
+            </label>
+        `;
 
-        let url;
+        footer.innerHTML = radioButtonsHTML;
 
-        if (stationid) {
-            url = `https://maps.fmdx.org/#qth=${LAT},${LON}&id=${stationid}&findId=*`;
-        } else if (picode !== '?') {
-            url = `https://maps.fmdx.org/#qth=${LAT},${LON}&freq=${freq}&findPi=${picode}`;
-        } else {
-            url = `https://maps.fmdx.org/#lat=${LAT}&lon=${LON}&r=150`;
-        }
+        const radioButtons = footer.querySelectorAll('input[type="radio"]');
+        radioButtons.forEach(radio => {
+            radio.addEventListener('change', function() {
+                updateradius(this.value); 
+            });
 
-        const uniqueUrl = `${url}&t=${new Date().getTime()}`;
-
-function createAndInsertIframe() {
-    const newIframe = createIframe();
-    const header = createIframeHeader(picode, freq, stationid, station, city, distance, ps, itu); // Create the header
-    const closeButton = createCloseButton(); // Create the close button
-    newIframe.src = uniqueUrl;
-
-    // Create or show the iframeContainer at the last position
-    if (!iframeContainer) {
-        iframeContainer = document.createElement('div');
-        iframeContainer.id = 'movableDiv';
-        iframeContainer.classList.add('bg-color-2');
-        iframeContainer.style.width = (iframeWidth + 20) + 'px'; // Account for 10px border
-        iframeContainer.style.height = (iframeHeight + 20) + 'px'; // Account for 10px border
-        iframeContainer.style.left = iframeLeft + 'px';
-        iframeContainer.style.top = iframeTop + 'px';
-        iframeContainer.style.position = 'fixed';
-        iframeContainer.style.opacity = '0'; // Start invisible
-        iframeContainer.style.transition = 'opacity 0.5s'; // Smooth transition
-        iframeContainer.appendChild(header); // Add the header to the container
-        iframeContainer.appendChild(closeButton); // Add the close button
-        iframeContainer.appendChild(newIframe);
-        document.body.appendChild(iframeContainer);
-        addDragFunctionality(iframeContainer);
-        addResizeFunctionality(iframeContainer); // Add resize functionality
-        iframeContainer.style.opacity = '1'; // Fade in the container
-        newIframe.style.visibility = 'visible'; // Make the iframe visible
-    } else {
-        iframeContainer.appendChild(newIframe);
-        
-        const existingHeader = iframeContainer.querySelector('div');
-        if (existingHeader) {
-            if (!stationid) {
-                existingHeader.innerHTML = `${freq} MHz | ${picode}`;
-            } else {
-                existingHeader.innerHTML = `${freq} MHz | ${picode} | ${station} from ${city} [${itu}] [${distance} km]`;
+            if (radio.value === radius) {
+                radio.checked = true; 
             }
+        });
+	
+        return footer;
+    }
+
+const corsAnywhereUrl = 'https://cors-proxy.highpoint2000.synology.me:5001/';
+
+// IndexedDB Setup
+function openIndexedDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('picodeDatabase', 1);
+
+        request.onupgradeneeded = function(event) {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains('picodeStore')) {
+                db.createObjectStore('picodeStore', { keyPath: 'freq' });
+            }
+        };
+
+        request.onsuccess = function(event) {
+            resolve(event.target.result);
+        };
+
+        request.onerror = function(event) {
+            reject('Error opening IndexedDB: ' + event.target.errorCode);
+        };
+    });
+}
+
+// Speichern in IndexedDB
+async function savePicodeData(freq, data) {
+    const db = await openIndexedDB();
+    const transaction = db.transaction(['picodeStore'], 'readwrite');
+    const store = transaction.objectStore('picodeStore');
+    store.put({ freq, data });
+}
+
+// Daten aus IndexedDB abrufen
+async function getPicodeData(freq) {
+    const db = await openIndexedDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['picodeStore'], 'readonly');
+        const store = transaction.objectStore('picodeStore');
+        const request = store.get(freq);
+
+        request.onsuccess = function(event) {
+            resolve(event.target.result ? event.target.result.data : null);
+        };
+
+        request.onerror = function(event) {
+            reject('Error retrieving data: ' + event.target.errorCode);
+        };
+    });
+}
+
+async function checkPicode(freq, picode) {
+    let foundPI = false;
+
+    // Hole die gecachten Daten aus IndexedDB (oder was immer du verwendest)
+    const cachedData = await getPicodeData(freq);
+
+    if (cachedData && !picode.includes('?')) {
+        console.log('LIVEMAP using cached data from IndexedDB');
+
+        // Überprüfe, ob locations ein Objekt ist, und durchlaufe es
+        if (typeof cachedData.locations === 'object') {
+            for (const key in cachedData.locations) {
+                const stations = cachedData.locations[key].stations;
+                if (Array.isArray(stations)) {
+                    foundPI = stations.some(station => station.pi === picode);
+                    if (foundPI) {
+                        console.log(`LIVEMAP found match for picode: ${picode} in cached data`);
+                        break;
+                    }
+                }
+            }
+        } else {
+            console.error('cachedData.locations is not an object');
         }
 
-        // Remove old iframes after the new iframe is visible
-        const existingIframes = iframeContainer.querySelectorAll('iframe:not(:last-child)');
-        existingIframes.forEach(iframe => {
-            iframe.parentNode.removeChild(iframe);
-        });
+        return foundPI;
+    }
+
+    // Wenn keine Daten im Cache, hole sie von der API
+    try {
+        const response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?freq=${freq}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+
+        // Speichern in IndexedDB
+        await savePicodeData(freq, data);
+
+        // Überprüfe, ob locations ein Objekt ist, und durchlaufe es
+        if (typeof data.locations === 'object') {
+            for (const key in data.locations) {
+                const stations = data.locations[key].stations;
+                if (Array.isArray(stations)) {
+                    foundPI = stations.some(station => station.pi === picode);
+                    if (foundPI) {
+                        console.log(`LIVEMAP found match for picode: ${picode} in API data`);
+                        break;
+                    }
+                }
+            }
+        } else {
+            console.error('data.locations is not an object');
+        }
+
+        return foundPI;
+    } catch (error) {
+        console.error('Error checking picode:', error);
+        return false;
     }
 }
 
-        if (freq === '0.0' || (picode !== '?' && picode !== lastPicode) || (stationid && stationid !== lastStationId)) {
-            createAndInsertIframe(); // Always create and insert the new iframe
 
-            lastPicode = picode;
-            lastStationId = stationid;
-            lastFreq = freq; // Update last frequency
+
+
+
+
+   async function openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, radius) {
+    if (!LiveMapActive) {
+        return;
+    }
+
+    if (picode.includes('??') || picode.includes('???')) {
+        picode = '?'; 
+    } else if (picode === '?' && picode.length > 1) {
+        picode = picode.replace('?', ''); 
+    }
+    
+    let foundPI = false; // Initialisiere foundPI mit false
+    
+    if (picode !== '?' && picode !== lastPicode) {
+        foundPI = await checkPicode(freq, picode);  // Warte auf das Ergebnis von checkPicode
+    }
+       
+    const LAT = localStorage.getItem('qthLatitude') || '0'; 
+    const LON = localStorage.getItem('qthLongitude') || '0'; 
+
+    let url;
+    
+    if (stationid) {
+        url = `https://maps.fmdx.org/#qth=${LAT},${LON}&id=${stationid}&findId=*`;
+    } else if (picode !== '?' && foundPI) {
+        url = `https://maps.fmdx.org/#qth=${LAT},${LON}&freq=${freq}&findPi=${picode}`;
+    } else {
+        if (radius === 'none') {
+            url = `https://maps.fmdx.org/#lat=${LAT}&lon=${LON}&freq=${freq}`;
+        } else {
+            url = `https://maps.fmdx.org/#lat=${LAT}&lon=${LON}&freq=${freq}&r=${radius}`;
         }
     }
+
+    const uniqueUrl = `${url}&t=${new Date().getTime()}`;
+
+    function createAndInsertIframe() {
+        const newIframe = createIframe();
+        const header = createIframeHeader(); 
+        const footer = createIframeFooter(); 
+        const closeButton = createCloseButton(); 
+        newIframe.src = uniqueUrl;
+
+        newIframe.style.opacity = '0'; 
+        newIframe.style.transition = 'opacity 0.5s'; 
+
+        if (!iframeContainer) {
+            iframeContainer = document.createElement('div');
+            iframeContainer.id = 'movableDiv';
+            iframeContainer.classList.add('bg-color-2');
+            iframeContainer.style.width = (iframeWidth) + 'px'; 
+            iframeContainer.style.height = (iframeHeight) + 'px'; 
+            iframeContainer.style.left = iframeLeft + 'px';
+            iframeContainer.style.top = iframeTop + 'px';
+            iframeContainer.style.position = 'fixed';
+            iframeContainer.style.opacity = '0'; 
+            iframeContainer.style.transition = 'opacity 0.5s'; 
+            iframeContainer.appendChild(header); 
+            iframeContainer.appendChild(closeButton); 
+            iframeContainer.appendChild(newIframe);
+            iframeContainer.appendChild(footer); 
+            document.body.appendChild(iframeContainer);
+            addDragFunctionality(iframeContainer);
+            addResizeFunctionality(iframeContainer); 
+
+            setTimeout(() => {
+                iframeContainer.style.opacity = '1'; 
+                newIframe.style.opacity = '1'; 
+            }, 200); 
+        } else {
+            iframeContainer.appendChild(newIframe);
+
+            const existingHeader = iframeContainer.querySelector('div');
+            if (existingHeader) {
+                if (!stationid) {
+                    existingHeader.innerHTML = `${freq} MHz | ${picode}`;
+                } else {
+                    existingHeader.innerHTML = `${freq} MHz | ${picode} | ${station} from ${city} [${itu}] [${radius} km]`;
+                }
+            }
+
+            const existingIframes = iframeContainer.querySelectorAll('iframe:not(:last-child)');
+            existingIframes.forEach(iframe => {
+                iframe.parentNode.removeChild(iframe);
+            });
+
+            setTimeout(() => {
+                newIframe.style.opacity = '1'; 
+            }, 200); 
+        }
+    }
+
+    if (freq === '0.0' || (picode !== '?' && picode !== lastPicode) || (freq !== lastFreq) || (stationid && stationid !== lastStationId)) {
+        createAndInsertIframe(); 
+        
+        lastPicode = picode;
+        lastStationId = stationid;
+        lastFreq = freq; 
+    }
+}
+
+
+    let previousFreq = null; 
+    let timeoutId = null;    
+    let isFirstUpdateAfterChange = false; 
 
     async function handleWebSocketMessage(event) {
         try {
             const data = JSON.parse(event.data);
-            const picode = data.pi;
-            const freq = data.freq;
-            const itu = data.txInfo.itu;
-            const city = data.txInfo.city;
-			const station = data.txInfo.tx;
-			const distance = data.txInfo.dist;
-			const ps = data.ps;
-            let stationid;
+            picode = data.pi;
+            freq = data.freq;
+            itu = data.txInfo.itu;
+            city = data.txInfo.city;
+            station = data.txInfo.tx;
+            distance = data.txInfo.dist;
+            ps = data.ps;
 
             if (itu === "POL") {
                 stationid = await fetchstationid(freq, picode, city);
@@ -242,7 +458,21 @@ function createAndInsertIframe() {
                 stationid = data.txInfo.id;
             }
 
-            openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu);
+            if (freq !== previousFreq) {
+                previousFreq = freq;
+                isFirstUpdateAfterChange = true;
+
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+
+                timeoutId = setTimeout(() => {
+                    openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, radius);
+                    isFirstUpdateAfterChange = false; 
+                }, 1000);
+            } else if (!isFirstUpdateAfterChange) {
+                openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, radius);
+            }
 
         } catch (error) {
             console.error("Error processing the message:", error);
@@ -289,7 +519,6 @@ function createAndInsertIframe() {
         let offsetX = 0, offsetY = 0, startX = 0, startY = 0;
 
         element.onmousedown = function(e) {
-            // Check if the click is not on the resize element
             if (e.target.id !== 'resizer') {
                 e.preventDefault();
                 startX = e.clientX;
@@ -309,7 +538,6 @@ function createAndInsertIframe() {
         }
 
         function onMouseUp() {
-            // Save the new position
             localStorage.setItem('iframeLeft', element.style.left);
             localStorage.setItem('iframeTop', element.style.top);
             document.onmousemove = null;
@@ -319,14 +547,15 @@ function createAndInsertIframe() {
 
     function addResizeFunctionality(element) {
         const resizer = document.createElement('div');
-        resizer.id = 'resizer'; // Add ID for the resize element
+        resizer.id = 'resizer'; 
         resizer.style.width = '10px';
         resizer.style.height = '10px';
-        resizer.style.background = 'blue'; // Color for visibility
+        resizer.style.background = 'blue'; 
         resizer.style.cursor = 'nwse-resize';
         resizer.style.position = 'absolute';
         resizer.style.right = '0';
         resizer.style.bottom = '0';
+        resizer.style.zIndex = '1000'; 
         element.appendChild(resizer);
 
         resizer.addEventListener('mousedown', initResize);
@@ -340,13 +569,13 @@ function createAndInsertIframe() {
         function resize(e) {
             const newWidth = e.clientX - element.getBoundingClientRect().left;
             const newHeight = e.clientY - element.getBoundingClientRect().top;
-            if (newWidth > 100 && newHeight > 100) { // Minimum size
+            if (newWidth > 100 && newHeight > 100) {
                 element.style.width = newWidth + 'px';
                 element.style.height = newHeight + 'px';
                 const iframe = element.querySelector('iframe');
                 if (iframe) {
-                    iframe.width = (newWidth - 20) + 'px'; // Adjust for border
-                    iframe.height = (newHeight - 20) + 'px'; // Adjust for border
+                    iframe.width = (newWidth - 20) + 'px'; 
+                    iframe.height = (newHeight - 85) + 'px'; 
                 }
             }
         }
@@ -354,10 +583,10 @@ function createAndInsertIframe() {
         function stopResize() {
             const newWidth = parseInt(element.style.width);
             const newHeight = parseInt(element.style.height);
-            localStorage.setItem('iframeWidth', newWidth); // Save new width
-            localStorage.setItem('iframeHeight', newHeight); // Save new height
-            iframeWidth = newWidth - 20; // Update width variable for iframe
-            iframeHeight = newHeight - 20; // Update height variable for iframe
+            localStorage.setItem('iframeWidth', newWidth); 
+            localStorage.setItem('iframeHeight', newHeight); 
+            iframeWidth = newWidth - 20; 
+            iframeHeight = newHeight - 85; 
             window.removeEventListener('mousemove', resize);
             window.removeEventListener('mouseup', stopResize);
         }
@@ -385,19 +614,18 @@ function createAndInsertIframe() {
                 LiveMapButton.classList.add('bg-color-4');
                 console.log("LIVEMAP activated.");
 
-                lastPicode = '?'; // Set picode to '?' initially
+                lastPicode = '?'; 
                 lastFreq = '0.0';
                 lastStationId = null;
 
-                // Create or show the iframeContainer at the last position
                 if (!iframeContainer) {
-                    openOrUpdateIframe(lastPicode, lastFreq, lastStationId); // Create and insert the iframe
+                    openOrUpdateIframe(lastPicode, lastFreq, lastStationId); 
                 } else {
-                    iframeContainer.style.display = 'block'; // Make iframe visible again
-                    iframeContainer.style.left = iframeLeft + 'px'; // Restore last left position
-                    iframeContainer.style.top = iframeTop + 'px'; // Restore last top position
-                    iframeContainer.style.width = (iframeWidth + 20) + 'px'; // Restore last width
-                    iframeContainer.style.height = (iframeHeight + 20) + 'px'; // Restore last height
+                    iframeContainer.style.display = 'block'; 
+                    iframeContainer.style.left = iframeLeft + 'px'; 
+                    iframeContainer.style.top = iframeTop + 'px'; 
+                    iframeContainer.style.width = (iframeWidth + 20) + 'px'; 
+                    iframeContainer.style.height = (iframeHeight + 20) + 'px'; 
                 }
             } else {
                 LiveMapButton.classList.remove('bg-color-4');
@@ -405,7 +633,6 @@ function createAndInsertIframe() {
                 console.log("LIVEMAP deactivated.");
 
                 if (iframeContainer) {
-                    // Save the position before removing
                     iframeLeft = parseInt(iframeContainer.style.left);
                     iframeTop = parseInt(iframeContainer.style.top);
                     localStorage.setItem('iframeLeft', iframeLeft);
@@ -413,15 +640,15 @@ function createAndInsertIframe() {
 
                     const iframes = document.querySelectorAll('iframe');
                     iframes.forEach(iframe => {
-                        iframe.style.opacity = '0'; // Or use iframe.parentNode.removeChild(iframe);
-                        iframe.style.transition = 'opacity 0.5s'; // Add a smooth transition animation
+                        iframe.style.opacity = '0'; 
+                        iframe.style.transition = 'opacity 0.5s'; 
                     });
 
                     iframeContainer.classList.add('fade-out');
 
                     iframeContainer.addEventListener('animationend', () => {
                         document.body.removeChild(iframeContainer);
-                        iframeContainer = null; // Reset iframeContainer
+                        iframeContainer = null; 
                     });
                 }
             }
