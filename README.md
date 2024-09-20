@@ -6,9 +6,10 @@ This plugin shows the detected reception (PI code/station ID) in realtime on a m
 
 
 
-## v1.2a
+## v2.0
 
-- Insert close X at the top-right corner
+- Display of transmitters if no PI code is received
+- Filter for distances (150, 300, 700, 1000 km)
 
 ## Installation notes:
 
@@ -24,6 +25,10 @@ This plugin shows the detected reception (PI code/station ID) in realtime on a m
 - The position of the pop-up window can be changed by pressing the border and moving the window. By pressing and dragging the blue triangle in the lower right corner, the size of the window can be adjusted.
 
 ## History:
+
+## v1.2a
+
+- Insert close X at the top-right corner
 
 ### v1.2
 
