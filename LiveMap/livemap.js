@@ -2,13 +2,25 @@
 ///                                                      /// 
 ///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.0 BETA)      /// 
 ///                                                      /// 
-///  by Highpoint                last update: 19.09.24   /// 
+///  by Highpoint                last update: 23.09.24   /// 
 ///                                                      /// 
 ///  https://github.com/Highpoint2000/LiveMap            /// 
 ///                                                      /// 
 ////////////////////////////////////////////////////////////
 
-// Define iframe size and position as variables
+// Define ConsoleDebug variable
+let ConsoleDebug = false;
+
+////////////////////////////////////////////////////////////
+
+// Custom console log function
+function debugLog(...messages) {
+    if (ConsoleDebug) {
+        console.log(...messages);
+    }
+}
+
+// Define iframe size and position variables
 let iframeWidth = parseInt(localStorage.getItem('iframeWidth')) || 450; // Restore from localStorage or use default
 let iframeHeight = parseInt(localStorage.getItem('iframeHeight')) || 450; // Restore from localStorage or use default
 let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 70; // Restore from localStorage or use default
@@ -31,8 +43,11 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
     let ps;
     let stationid;
     let radius;
-    let foundPI;	
+    let coordinates;
+    let LAT;
+    let LON;
 
+    // Add custom CSS styles
     const style = document.createElement('style');
     style.innerHTML = `
     .fade-out {
@@ -49,47 +64,131 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
     }
 
     #movableDiv {
+        display: flex;
+        flex-direction: column;
         border-radius: 15px; /* Rounded corners */
         position: fixed;
         cursor: move;
-        overflow: hidden; /* Prevents content from exceeding rounded corners */
-        display: flex; /* Activate flexbox */
-        justify-content: center; /* Horizontal centering */
-        align-items: center; /* Vertical centering */
+        overflow: hidden; /* Prevent content from exceeding rounded corners */
+        justify-content: space-between; /* Distribute space between header, iframe, and footer */
+        width: ${iframeWidth}px; /* Set initial width */
+        height: ${iframeHeight}px; /* Set initial height */
+        left: ${iframeLeft}px;
+        top: ${iframeTop}px;
+        background-color: #f0f0f0; /* Example background color */
     }
 
     #movableDiv iframe {
         border-radius: 5px; /* Rounded corners for the iframe */
+        flex-grow: 1; /* Allow iframe to fill available space */
+        width: 100%; /* Ensure the iframe takes full width */
+        border: none; /* Remove border for a clean look */
+        position: relative; /* Keep iframe inside the container */
+    }
+
+    /* Toggle switch CSS */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 34px;
+        height: 14px;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 34px;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 0px;
+        bottom: 0px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+
+    input:checked + .slider {
+        background-color: #2196F3;
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(20px);
+    }
+
+    /* Locked switch state (red) */
+    .switch.disabled .slider {
+        background-color: red; /* Red for locked */
+    }
+
+    /* Enabled switch state (green) */
+    .switch.enabled .slider {
+        background-color: green; /* Green for active */
     }
     `;
     document.head.appendChild(style);
 
+    // Update toggle switch based on stationid
+    function updateToggleSwitch(stationid) {
+        const txposSwitch = document.getElementById('txposSwitch');
+        const toggleSwitch = document.querySelector('.switch'); // Reference to the switch
+        txposSwitch.disabled = false; // Disable if stationid is empty
+
+        if (txposSwitch) {
+            if (stationid) {
+                toggleSwitch.classList.add('enabled');
+                toggleSwitch.classList.remove('disabled');
+            } else {              
+                toggleSwitch.classList.add('disabled');
+                toggleSwitch.classList.remove('enabled');
+            }
+        }
+    }
+
+    // WebSocket setup function
     async function setupWebSocket() {
         if (!websocket || websocket.readyState === WebSocket.CLOSED) {
             try {
                 websocket = await window.socketPromise;
 
                 websocket.addEventListener("open", () => {
-                    console.log("WebSocket connected.");
+                    debugLog("WebSocket connected.");
                 });
 
                 websocket.addEventListener("message", handleWebSocketMessage);
 
                 websocket.addEventListener("error", (error) => {
-                    console.error("WebSocket error:", error);
+                    debugLog("WebSocket error:", error);
                 });
 
                 websocket.addEventListener("close", (event) => {
-                    console.log("WebSocket connection closed, retrying in 5 seconds.");
+                    debugLog("WebSocket connection closed, retrying in 5 seconds.");
                     setTimeout(setupWebSocket, 5000);
                 });
 
             } catch (error) {
-                console.error("Error during WebSocket setup:", error);
+                debugLog("Error during WebSocket setup:", error);
             }
         }
     }
 
+    // Function to create the iframe close button
     function createCloseButton() {
         const closeButton = document.createElement('div');
         closeButton.innerHTML = 'x';
@@ -133,41 +232,36 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
         return closeButton;
     }
 
+    // Create iframe element
     function createIframe() {
         const iframe = document.createElement('iframe');
-        iframe.width = (iframeWidth - 20) + 'px';  // Adjust for border size
-        iframe.height = (iframeHeight - 85) + 'px';  // Adjust for header and footer size
-        iframe.style.border = 'none'; // Remove border for a clean look
-        iframe.style.position = 'relative'; // Keep iframe inside the container
-        iframe.style.top = '0px'; 
+        iframe.style.flexGrow = '1';  // Allow iframe to fill remaining space
         return iframe;
     }
 
+    // Create the iframe header
     function createIframeHeader() {
         const header = document.createElement('div');
-        header.style.backgroundColor = 'bg-color-2';
+        header.classList.add('bg-color-2'); // Add background color
         header.style.color = 'white';
         header.style.padding = '10px';
-        header.style.position = 'absolute';
-        header.style.top = '0';
-        header.style.left = '0';
-        header.style.width = '100%';
-        header.style.zIndex = '1'; // Make sure it appears above other elements
+        header.style.position = 'relative';
+        header.style.zIndex = '1'; // Ensure it appears above other elements
+        header.innerHTML = 'Header Title'; // Example text, customize as needed
         return header;
     }
-	
+
+    // Create the iframe footer with radius options and a toggle switch for TXPOS
     function createIframeFooter() {
         const footer = document.createElement('div');
-        footer.style.backgroundColor = 'bg-color-2'; 
+        footer.classList.add('bg-color-2'); // Add background color
         footer.style.color = 'white';
         footer.style.padding = '10px';
-        footer.style.position = 'absolute';
-        footer.style.bottom = '0';
-        footer.style.left = '0';
-        footer.style.width = '100%';
+        footer.style.position = 'relative';
         footer.style.zIndex = '1'; 
         footer.style.display = 'flex'; 
-        footer.style.justifyContent = 'center'; 
+        footer.style.flexWrap = 'wrap'; // Allows wrapping
+        footer.style.justifyContent = 'space-between';
 
         radius = localStorage.getItem('selectedRadius') || '';
 
@@ -179,26 +273,25 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
             openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, radius);
         }
 
+        // Radio buttons for selecting radius
         const radioButtonsHTML = `
             <label style="margin-right: 10px;">
-                <input type="radio" name="radius" value="150">
-                150 km
+                <input type="radio" name="radius" value="100"> 100 km
             </label>
             <label style="margin-right: 10px;">
-                <input type="radio" name="radius" value="300">
-                300 km
+                <input type="radio" name="radius" value="250"> 250 km
             </label>
             <label style="margin-right: 10px;">
-                <input type="radio" name="radius" value="700">
-                700 km
+                <input type="radio" name="radius" value="500"> 500 km
             </label>
             <label style="margin-right: 10px;">
-                <input type="radio" name="radius" value="1000">
-                1000 km
+                <input type="radio" name="radius" value="750"> 750 km
             </label>
             <label style="margin-right: 10px;">
-                <input type="radio" name="radius" value="none">
-                none
+                <input type="radio" name="radius" value="1000"> 1000 km
+            </label>
+            <label style="margin-right: 10px;">
+                <input type="radio" name="radius" value="none"> none
             </label>
         `;
 
@@ -214,233 +307,296 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
                 radio.checked = true; 
             }
         });
-	
+
+        // Toggle switch (TXPOS) on the right side of the footer
+        const toggleSwitchContainer = document.createElement('div');
+        toggleSwitchContainer.style.display = 'flex';
+        toggleSwitchContainer.style.alignItems = 'center'; // Center the slider
+        toggleSwitchContainer.style.marginRight = '10px';
+
+        const toggleSwitchLabel = document.createElement('label');
+        toggleSwitchLabel.innerHTML = 'TXPOS';
+        toggleSwitchLabel.style.marginLeft = '10px'; // Space to the slider
+        toggleSwitchLabel.style.whiteSpace = 'nowrap'; // Prevent line break in the label
+
+        const toggleSwitch = document.createElement('label');
+        toggleSwitch.classList.add('switch'); // Class for the slider
+
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.id = 'txposSwitch';
+        input.disabled = false; // Always enabled
+
+        const slider = document.createElement('span');
+        slider.classList.add('slider');
+
+        toggleSwitch.appendChild(input);
+        toggleSwitch.appendChild(slider);
+        toggleSwitchContainer.appendChild(toggleSwitch); // Slider first
+        toggleSwitchContainer.appendChild(toggleSwitchLabel); // Label to the right of the slider
+        footer.appendChild(toggleSwitchContainer);
+
+        toggleSwitch.classList.add('disabled'); // Initially disabled
+
+        // Event listener for the switch
+        input.addEventListener('change', async function() {
+            if (this.checked) {
+                if (!stationid) {
+                    // Notify the user that the switch can't be activated
+                    sendToast('warning', 'Live Map', 'TXPOS can only be activated when a station is recognized', false, false);    
+                    this.checked = false; // Reset the switch
+                    return;
+                }
+
+                // TXPOS is active - save the coordinates
+                const { lat, lon } = coordinates || { lat: '0', lon: '0' };
+                localStorage.setItem('txposLat', lat);
+                localStorage.setItem('txposLon', lon);
+                debugLog(`LIVEMAP TXPOS activated: LAT = ${lat}, LON = ${lon}`);
+                sendToast('info', 'Live Map', `TXPOS activated: ${city}[${itu}]`, true, false);    
+            } else {
+                // TXPOS deactivated - reset to default values
+                localStorage.removeItem('txposLat');
+                localStorage.removeItem('txposLon');
+                debugLog(`LIVEMAP TXPOS deactivated, using default values.`);
+
+                // Update the iframe
+                openOrUpdateIframe('?', '0.0', '', '', '', '', '', '', radius);
+            }
+        });
+
         return footer;
     }
 
-const corsAnywhereUrl = 'https://cors-proxy.highpoint2000.synology.me:5001/';
+    const corsAnywhereUrl = 'https://cors-proxy.highpoint2000.synology.me:5001/';
 
-// IndexedDB Setup
-function openIndexedDB() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open('picodeDatabase', 1);
+    // IndexedDB setup function
+    function openIndexedDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open('picodeDatabase', 1);
 
-        request.onupgradeneeded = function(event) {
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains('picodeStore')) {
-                db.createObjectStore('picodeStore', { keyPath: 'freq' });
-            }
-        };
+            request.onupgradeneeded = function(event) {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('picodeStore')) {
+                    db.createObjectStore('picodeStore', { keyPath: 'freq' });
+                }
+            };
 
-        request.onsuccess = function(event) {
-            resolve(event.target.result);
-        };
+            request.onsuccess = function(event) {
+                resolve(event.target.result);
+            };
 
-        request.onerror = function(event) {
-            reject('Error opening IndexedDB: ' + event.target.errorCode);
-        };
-    });
-}
+            request.onerror = function(event) {
+                reject('Error opening IndexedDB: ' + event.target.errorCode);
+            };
+        });
+    }
 
-// Speichern in IndexedDB
-async function savePicodeData(freq, data) {
-    const db = await openIndexedDB();
-    const transaction = db.transaction(['picodeStore'], 'readwrite');
-    const store = transaction.objectStore('picodeStore');
-    store.put({ freq, data });
-}
-
-// Daten aus IndexedDB abrufen
-async function getPicodeData(freq) {
-    const db = await openIndexedDB();
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['picodeStore'], 'readonly');
+    // Save data in IndexedDB
+    async function savePicodeData(freq, data) {
+        const db = await openIndexedDB();
+        const transaction = db.transaction(['picodeStore'], 'readwrite');
         const store = transaction.objectStore('picodeStore');
-        const request = store.get(freq);
+        store.put({ freq, data });
+    }
 
-        request.onsuccess = function(event) {
-            resolve(event.target.result ? event.target.result.data : null);
-        };
+    // Retrieve data from IndexedDB
+    async function getPicodeData(freq) {
+        const db = await openIndexedDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['picodeStore'], 'readonly');
+            const store = transaction.objectStore('picodeStore');
+            const request = store.get(freq);
 
-        request.onerror = function(event) {
-            reject('Error retrieving data: ' + event.target.errorCode);
-        };
-    });
-}
+            request.onsuccess = function(event) {
+                resolve(event.target.result ? event.target.result.data : null);
+            };
 
-async function checkPicode(freq, picode) {
-    let foundPI = false;
+            request.onerror = function(event) {
+                reject('Error retrieving data: ' + event.target.errorCode);
+            };
+        });
+    }
 
-    // Hole die gecachten Daten aus IndexedDB (oder was immer du verwendest)
-    const cachedData = await getPicodeData(freq);
+    // Check for matching picode and station ID
+    async function checkPicodeAndID(freq, picode, id) {
+        let foundPI = false;
+        let foundID = false;
+        coordinates = null; // Initialize or reset
 
-    if (cachedData && !picode.includes('?')) {
-        console.log('LIVEMAP using cached data from IndexedDB');
+        // Retrieve cached data from IndexedDB
+        const cachedData = await getPicodeData(freq);
 
-        // Überprüfe, ob locations ein Objekt ist, und durchlaufe es
-        if (typeof cachedData.locations === 'object') {
-            for (const key in cachedData.locations) {
-                const stations = cachedData.locations[key].stations;
-                if (Array.isArray(stations)) {
-                    foundPI = stations.some(station => station.pi === picode);
-                    if (foundPI) {
-                        console.log(`LIVEMAP found match for picode: ${picode} in cached data`);
-                        break;
+        if (cachedData && !picode.includes('?')) {
+            debugLog('LIVEMAP using cached data from IndexedDB');
+
+            if (typeof cachedData.locations === 'object') {
+                for (const key in cachedData.locations) {
+                    const location = cachedData.locations[key];
+                    const stations = location.stations;
+
+                    if (Array.isArray(stations)) {
+                        foundPI = stations.some(station => station.pi === picode);
+                        foundID = stations.some(station => station.id === id);
+
+                        if (foundPI || foundID) {
+                            debugLog(`LIVEMAP found match for picode: ${picode} or id: ${id} in cached data`);
+                            coordinates = { lat: location.lat, lon: location.lon }; // Set coordinates
+                            if (foundPI && foundID) break; // Stop if both found
+                        }
                     }
                 }
             }
-        } else {
-            console.error('cachedData.locations is not an object');
+            return { foundPI, foundID, coordinates };
         }
 
-        return foundPI;
-    }
+        // Fetch data from API if not in cache
+        try {
+            const response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?freq=${freq}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            const data = await response.json();
+            await savePicodeData(freq, data);
 
-    // Wenn keine Daten im Cache, hole sie von der API
-    try {
-        const response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?freq=${freq}`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        const data = await response.json();
+            if (typeof data.locations === 'object') {
+                for (const key in data.locations) {
+                    const location = data.locations[key];
+                    const stations = location.stations;
 
-        // Speichern in IndexedDB
-        await savePicodeData(freq, data);
+                    if (Array.isArray(stations)) {
+                        foundPI = stations.some(station => station.pi === picode);
+                        foundID = stations.some(station => station.id === id);
 
-        // Überprüfe, ob locations ein Objekt ist, und durchlaufe es
-        if (typeof data.locations === 'object') {
-            for (const key in data.locations) {
-                const stations = data.locations[key].stations;
-                if (Array.isArray(stations)) {
-                    foundPI = stations.some(station => station.pi === picode);
-                    if (foundPI) {
-                        console.log(`LIVEMAP found match for picode: ${picode} in API data`);
-                        break;
+                        if (foundPI || foundID) {
+                            debugLog(`LIVEMAP found match for picode: ${picode} or id: ${id} in fetched data`);
+                            coordinates = { lat: location.lat, lon: location.lon }; // Set coordinates
+                            if (foundPI && foundID) break;
+                        }
                     }
                 }
             }
-        } else {
-            console.error('data.locations is not an object');
-        }
-
-        return foundPI;
-    } catch (error) {
-        console.error('Error checking picode:', error);
-        return false;
-    }
-}
-
-
-
-
-
-
-   async function openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, radius) {
-    if (!LiveMapActive) {
-        return;
-    }
-
-    if (picode.includes('??') || picode.includes('???')) {
-        picode = '?'; 
-    } else if (picode === '?' && picode.length > 1) {
-        picode = picode.replace('?', ''); 
-    }
-    
-    let foundPI = false; // Initialisiere foundPI mit false
-    
-    if (picode !== '?' && picode !== lastPicode) {
-        foundPI = await checkPicode(freq, picode);  // Warte auf das Ergebnis von checkPicode
-    }
-       
-    const LAT = localStorage.getItem('qthLatitude') || '0'; 
-    const LON = localStorage.getItem('qthLongitude') || '0'; 
-
-    let url;
-    
-    if (stationid) {
-        url = `https://maps.fmdx.org/#qth=${LAT},${LON}&id=${stationid}&findId=*`;
-    } else if (picode !== '?' && foundPI) {
-        url = `https://maps.fmdx.org/#qth=${LAT},${LON}&freq=${freq}&findPi=${picode}`;
-    } else {
-        if (radius === 'none') {
-            url = `https://maps.fmdx.org/#lat=${LAT}&lon=${LON}&freq=${freq}`;
-        } else {
-            url = `https://maps.fmdx.org/#lat=${LAT}&lon=${LON}&freq=${freq}&r=${radius}`;
+            return { foundPI, foundID, coordinates };
+        } catch (error) {
+            console.error('Error checking picode and id:', error);
+            return { foundPI: false, foundID: false, coordinates: null };
         }
     }
 
-    const uniqueUrl = `${url}&t=${new Date().getTime()}`;
+    // Open or update the iframe based on picode, freq, and station ID
+    async function openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, radius) {
+        if (!LiveMapActive) return;
 
-    function createAndInsertIframe() {
-        const newIframe = createIframe();
-        const header = createIframeHeader(); 
-        const footer = createIframeFooter(); 
-        const closeButton = createCloseButton(); 
-        newIframe.src = uniqueUrl;
+        let foundPI = false; // Initialize foundPI
+        let foundID = false; // Initialize foundID
+        let coordinates = null; // Initialize coordinates
 
-        newIframe.style.opacity = '0'; 
-        newIframe.style.transition = 'opacity 0.5s'; 
+        if ((picode !== '?' && picode !== lastPicode) || (stationid && stationid !== lastStationId)) {
+            let result = await checkPicodeAndID(freq, picode, stationid);
+            foundPI = result.foundPI; // Assign the result of the check
+            foundID = result.foundID; // Assign the result of the check
+            coordinates = result.coordinates; // Assign the result of the check
+        }
 
-        if (!iframeContainer) {
-            iframeContainer = document.createElement('div');
-            iframeContainer.id = 'movableDiv';
-            iframeContainer.classList.add('bg-color-2');
-            iframeContainer.style.width = (iframeWidth) + 'px'; 
-            iframeContainer.style.height = (iframeHeight) + 'px'; 
-            iframeContainer.style.left = iframeLeft + 'px';
-            iframeContainer.style.top = iframeTop + 'px';
-            iframeContainer.style.position = 'fixed';
-            iframeContainer.style.opacity = '0'; 
-            iframeContainer.style.transition = 'opacity 0.5s'; 
-            iframeContainer.appendChild(header); 
-            iframeContainer.appendChild(closeButton); 
-            iframeContainer.appendChild(newIframe);
-            iframeContainer.appendChild(footer); 
-            document.body.appendChild(iframeContainer);
-            addDragFunctionality(iframeContainer);
-            addResizeFunctionality(iframeContainer); 
+        LAT = localStorage.getItem('qthLatitude') || '0';
+        LON = localStorage.getItem('qthLongitude') || '0';
 
-            setTimeout(() => {
-                iframeContainer.style.opacity = '1'; 
-                newIframe.style.opacity = '1'; 
-            }, 200); 
+        const txposSwitch = document.getElementById('txposSwitch');
+
+        let txposLat, txposLon;
+        if (txposSwitch && txposSwitch.checked) {
+            txposLat = localStorage.getItem('txposLat') || '0';
+            txposLon = localStorage.getItem('txposLon') || '0';
         } else {
-            iframeContainer.appendChild(newIframe);
+            txposLat = LAT;
+            txposLon = LON;
+        }
 
-            const existingHeader = iframeContainer.querySelector('div');
-            if (existingHeader) {
-                if (!stationid) {
-                    existingHeader.innerHTML = `${freq} MHz | ${picode}`;
-                } else {
-                    existingHeader.innerHTML = `${freq} MHz | ${picode} | ${station} from ${city} [${itu}] [${radius} km]`;
+        let url;
+        if (stationid) {
+            url = `https://maps.fmdx.org/#qth=${LAT},${LON}&id=${stationid}&findId=*`;
+        } else if (picode !== '?' && foundPI) {
+            url = `https://maps.fmdx.org/#qth=${LAT},${LON}&freq=${freq}&findPi=${picode}`; 
+        } else if (radius === 'none') {
+            url = `https://maps.fmdx.org/#lat=${txposLat}&lon=${txposLon}&freq=${freq}`;
+        } else {
+            url = `https://maps.fmdx.org/#lat=${txposLat}&lon=${txposLon}&freq=${freq}&r=${radius}`;
+        }
+
+        const uniqueUrl = `${url}&t=${new Date().getTime()}`;
+
+        function createAndInsertIframe() {
+            const newIframe = createIframe();
+            const header = createIframeHeader(); 
+            const footer = createIframeFooter(); 
+            const closeButton = createCloseButton(); 
+            newIframe.src = uniqueUrl;
+
+            newIframe.style.opacity = '0'; 
+            newIframe.style.transition = 'opacity 0.5s'; 
+
+            if (!iframeContainer) {
+                iframeContainer = document.createElement('div');
+                iframeContainer.id = 'movableDiv';
+                iframeContainer.style.width = `${iframeWidth}px`; 
+                iframeContainer.style.height = `${iframeHeight}px`; 
+                iframeContainer.style.left = `${iframeLeft}px`;
+                iframeContainer.style.top = `${iframeTop}px`;
+                iframeContainer.style.position = 'fixed';
+                iframeContainer.style.opacity = '0'; 
+                iframeContainer.style.transition = 'opacity 0.5s'; 
+                iframeContainer.appendChild(header); 
+                iframeContainer.appendChild(footer); 
+                iframeContainer.appendChild(closeButton); 
+                iframeContainer.appendChild(newIframe);
+                document.body.appendChild(iframeContainer);
+                addDragFunctionality(iframeContainer);
+                addResizeFunctionality(iframeContainer); 
+
+                setTimeout(() => {
+                    iframeContainer.style.opacity = '1'; 
+                    newIframe.style.opacity = '1'; 
+                }, 200); 
+            } else {
+                iframeContainer.appendChild(newIframe);
+
+                const existingHeader = iframeContainer.querySelector('div');
+                if (existingHeader) {
+                    if (!stationid) {
+                        existingHeader.innerHTML = `${freq} MHz | ${picode}`;
+                    } else {
+                        existingHeader.innerHTML = `${freq} MHz | ${picode} | ${station} from ${city} [${itu}] [${radius} km]`;
+                    }
                 }
+
+                const existingIframes = iframeContainer.querySelectorAll('iframe:not(:last-child)');
+                existingIframes.forEach(iframe => {
+                    iframe.parentNode.removeChild(iframe);
+                });
+
+                setTimeout(() => {
+                    newIframe.style.opacity = '1'; 
+                }, 200); 
             }
+        }
 
-            const existingIframes = iframeContainer.querySelectorAll('iframe:not(:last-child)');
-            existingIframes.forEach(iframe => {
-                iframe.parentNode.removeChild(iframe);
-            });
+        if (freq === '0.0' || (picode !== '?' && picode !== lastPicode) || (freq !== lastFreq) || (stationid && stationid !== lastStationId)) {
+            createAndInsertIframe(); 
+            
+            lastPicode = picode;
+            lastStationId = stationid;
+            lastFreq = freq; 
 
-            setTimeout(() => {
-                newIframe.style.opacity = '1'; 
-            }, 200); 
+            // Update the toggle switch
+            updateToggleSwitch(stationid);
         }
     }
-
-    if (freq === '0.0' || (picode !== '?' && picode !== lastPicode) || (freq !== lastFreq) || (stationid && stationid !== lastStationId)) {
-        createAndInsertIframe(); 
-        
-        lastPicode = picode;
-        lastStationId = stationid;
-        lastFreq = freq; 
-    }
-}
-
 
     let previousFreq = null; 
     let timeoutId = null;    
     let isFirstUpdateAfterChange = false; 
 
+    // Handle incoming WebSocket messages
     async function handleWebSocketMessage(event) {
         try {
             const data = JSON.parse(event.data);
@@ -451,12 +607,7 @@ async function checkPicode(freq, picode) {
             station = data.txInfo.tx;
             distance = data.txInfo.dist;
             ps = data.ps;
-
-            if (itu === "POL") {
-                stationid = await fetchstationid(freq, picode, city);
-            } else {
-                stationid = data.txInfo.id;
-            }
+            stationid = data.txInfo.id;
 
             if (freq !== previousFreq) {
                 previousFreq = freq;
@@ -479,18 +630,13 @@ async function checkPicode(freq, picode) {
         }
     }
 
-    let cachedData = null;
-
+    // Fetch station ID based on frequency, picode, and city
     async function fetchstationid(freq, picode, city) {
         try {
-            if (!cachedData) {
-                const response = await fetch("https://tef.noobish.eu/logos/scripts/StationID_PL.txt");
+            const response = await fetch("https://tef.noobish.eu/logos/scripts/StationID_PL.txt");
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-
-                cachedData = await response.text();
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
             }
 
             const cleanedFreq = freq.replace('.', '');
@@ -515,6 +661,7 @@ async function checkPicode(freq, picode) {
         }
     }
 
+    // Add drag functionality to the iframe container
     function addDragFunctionality(element) {
         let offsetX = 0, offsetY = 0, startX = 0, startY = 0;
 
@@ -545,6 +692,7 @@ async function checkPicode(freq, picode) {
         }
     }
 
+    // Add resize functionality to the iframe container
     function addResizeFunctionality(element) {
         const resizer = document.createElement('div');
         resizer.id = 'resizer'; 
@@ -592,6 +740,7 @@ async function checkPicode(freq, picode) {
         }
     }
 
+    // Initialize the LiveMap button
     function initializeLiveMapButton() {
         const buttonWrapper = document.getElementById('button-wrapper');
         const LiveMapButton = document.createElement('button');
@@ -612,7 +761,7 @@ async function checkPicode(freq, picode) {
             if (LiveMapActive) {
                 LiveMapButton.classList.remove('bg-color-2');
                 LiveMapButton.classList.add('bg-color-4');
-                console.log("LIVEMAP activated.");
+                debugLog("LIVEMAP activated.");
 
                 lastPicode = '?'; 
                 lastFreq = '0.0';
@@ -630,7 +779,7 @@ async function checkPicode(freq, picode) {
             } else {
                 LiveMapButton.classList.remove('bg-color-4');
                 LiveMapButton.classList.add('bg-color-2');
-                console.log("LIVEMAP deactivated.");
+                debugLog("LIVEMAP deactivated.");
 
                 if (iframeContainer) {
                     iframeLeft = parseInt(iframeContainer.style.left);
@@ -657,7 +806,7 @@ async function checkPicode(freq, picode) {
         if (buttonWrapper) {
             LiveMapButton.style.marginLeft = '5px';
             buttonWrapper.appendChild(LiveMapButton);
-            console.log('LIVEMAP button successfully added to button-wrapper.');
+            debugLog('LIVEMAP button successfully added to button-wrapper.');
         } else {
             console.error('buttonWrapper element not found. Adding LIVEMAP button to default location.');
             const wrapperElement = document.querySelector('.tuner-info');
@@ -678,11 +827,13 @@ async function checkPicode(freq, picode) {
         LiveMapActive = false;
         LiveMapButton.classList.remove('bg-color-4');
         LiveMapButton.classList.add('bg-color-2');
-        console.log("LIVEMAP deactivated (default status).");
+        debugLog("LIVEMAP deactivated (default status).");
     }
 
+    // Setup the WebSocket connection
     setupWebSocket();
 
+    // Initialize LiveMap button once DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
         setTimeout(initializeLiveMapButton, 1000);
     });
