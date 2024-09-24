@@ -188,49 +188,55 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
         }
     }
 
-    // Function to create the iframe close button
-    function createCloseButton() {
-        const closeButton = document.createElement('div');
-        closeButton.innerHTML = 'x';
-        closeButton.style.position = 'absolute';
-        closeButton.style.top = '0px';
-        closeButton.style.right = '8px';
-        closeButton.style.cursor = 'pointer';
-        closeButton.style.color = 'white';
-        closeButton.classList.add('bg-color-2');
-        closeButton.style.padding = '4px';
-        closeButton.style.paddingLeft = '15px';
-        closeButton.style.zIndex = '10'; 
-        closeButton.style.fontSize = '20px';
+// Function to create the close button ("X")
+function createCloseButton() {
+    const closeButton = document.createElement('div');
+    closeButton.innerHTML = 'x';
+    closeButton.style.position = 'absolute';
+    closeButton.style.top = '0px';
+    closeButton.style.right = '8px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.color = 'white';
+    closeButton.classList.add('bg-color-2');
+    closeButton.style.padding = '4px';
+    closeButton.style.paddingLeft = '15px';
+    closeButton.style.zIndex = '10'; 
+    closeButton.style.fontSize = '20px';
 
-        closeButton.onclick = () => {
-            // Save the position before removing
-            iframeLeft = parseInt(iframeContainer.style.left);
-            iframeTop = parseInt(iframeContainer.style.top);
-            localStorage.setItem('iframeLeft', iframeLeft);
-            localStorage.setItem('iframeTop', iframeTop);
-            
-            // Fade-out effect before removing the iframe
-            iframeContainer.classList.add('fade-out'); // Add fade-out class
-            iframeContainer.addEventListener('animationend', () => {
-                // After the fade-out animation is done, remove iframe and container
-                if (iframeContainer) {
-                    iframeContainer.remove();
-                    iframeContainer = null;
-                }
+    closeButton.onclick = () => {
+        // Save the position and size of the iframe
+        iframeLeft = parseInt(iframeContainer.style.left);
+        iframeTop = parseInt(iframeContainer.style.top);
+        iframeWidth = parseInt(iframeContainer.style.width);  // Save the width
+        iframeHeight = parseInt(iframeContainer.style.height); // Save the height
 
-                // Deactivate LiveMap button
-                const LiveMapButton = document.getElementById('LIVEMAP-on-off');
-                if (LiveMapButton) {
-                    LiveMapButton.classList.remove('bg-color-4');
-                    LiveMapButton.classList.add('bg-color-2');
-                    LiveMapActive = false;
-                }
-            });
-        };
+        localStorage.setItem('iframeLeft', iframeLeft);
+        localStorage.setItem('iframeTop', iframeTop);
+        localStorage.setItem('iframeWidth', iframeWidth);  // Save the width
+        localStorage.setItem('iframeHeight', iframeHeight); // Save the height
 
-        return closeButton;
-    }
+        // Fade-out effect before removing the iframe
+        iframeContainer.classList.add('fade-out'); // Add fade-out class
+        iframeContainer.addEventListener('animationend', () => {
+            // After the fade-out animation is complete, remove iframe and container
+            if (iframeContainer) {
+                iframeContainer.remove();
+                iframeContainer = null;
+            }
+
+            // Deactivate the LiveMap button
+            const LiveMapButton = document.getElementById('LIVEMAP-on-off');
+            if (LiveMapButton) {
+                LiveMapButton.classList.remove('bg-color-4');
+                LiveMapButton.classList.add('bg-color-2');
+                LiveMapActive = false;
+            }
+        });
+    };
+
+    return closeButton;
+}
+
 
     // Create iframe element
     function createIframe() {
