@@ -2,7 +2,7 @@
 ///                                                      /// 
 ///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.0 BETA)      /// 
 ///                                                      /// 
-///  by Highpoint                last update: 23.09.24   /// 
+///  by Highpoint                last update: 24.09.24   /// 
 ///                                                      /// 
 ///  https://github.com/Highpoint2000/LiveMap            /// 
 ///                                                      /// 
@@ -740,95 +740,101 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore f
         }
     }
 
-    // Initialize the LiveMap button
-    function initializeLiveMapButton() {
-        const buttonWrapper = document.getElementById('button-wrapper');
-        const LiveMapButton = document.createElement('button');
+// Initialize the LiveMap button
+function initializeLiveMapButton() {
+    const buttonWrapper = document.getElementById('button-wrapper');
+    const LiveMapButton = document.createElement('button');
 
-        LiveMapButton.id = 'LIVEMAP-on-off';
-        LiveMapButton.classList.add('hide-phone');
-        LiveMapButton.setAttribute('aria-label', 'LIVEMAP');
-        LiveMapButton.setAttribute('data-tooltip', 'LIVEMAP on/off');
-        LiveMapButton.innerHTML = '<strong>LIVEMAP</strong>';
-        LiveMapButton.style.marginTop = '16px';
-        LiveMapButton.style.width = '100px';
-        LiveMapButton.classList.add('bg-color-2');
-        LiveMapButton.style.borderRadius = '0px';
-        LiveMapButton.title = `Plugin Version: ${plugin_version}`;
+    LiveMapButton.id = 'LIVEMAP-on-off';
+    LiveMapButton.classList.add('hide-phone');
+    LiveMapButton.setAttribute('aria-label', 'LIVEMAP');
+    LiveMapButton.setAttribute('data-tooltip', 'LIVEMAP on/off');
+    LiveMapButton.innerHTML = '<strong>LIVEMAP</strong>';
+    LiveMapButton.style.marginTop = '16px';
+    LiveMapButton.style.width = '100px';
+    LiveMapButton.classList.add('bg-color-2');
+    LiveMapButton.style.borderRadius = '0px';
+    LiveMapButton.title = `Plugin Version: ${plugin_version}`;
 
-        LiveMapButton.onclick = () => {
-            LiveMapActive = !LiveMapActive;
-            if (LiveMapActive) {
-                LiveMapButton.classList.remove('bg-color-2');
-                LiveMapButton.classList.add('bg-color-4');
-                debugLog("LIVEMAP activated.");
+    LiveMapButton.onclick = () => {
+        LiveMapActive = !LiveMapActive;
+        if (LiveMapActive) {
+            LiveMapButton.classList.remove('bg-color-2');
+            LiveMapButton.classList.add('bg-color-4');
+            debugLog("LIVEMAP activated.");
 
-                lastPicode = '?'; 
-                lastFreq = '0.0';
-                lastStationId = null;
+            lastPicode = '?'; 
+            lastFreq = '0.0';
+            lastStationId = null;
 
-                if (!iframeContainer) {
-                    openOrUpdateIframe(lastPicode, lastFreq, lastStationId); 
-                } else {
-                    iframeContainer.style.display = 'block'; 
-                    iframeContainer.style.left = iframeLeft + 'px'; 
-                    iframeContainer.style.top = iframeTop + 'px'; 
-                    iframeContainer.style.width = (iframeWidth + 20) + 'px'; 
-                    iframeContainer.style.height = (iframeHeight + 20) + 'px'; 
-                }
+            if (!iframeContainer) {
+                openOrUpdateIframe(lastPicode, lastFreq, lastStationId); 
             } else {
-                LiveMapButton.classList.remove('bg-color-4');
-                LiveMapButton.classList.add('bg-color-2');
-                debugLog("LIVEMAP deactivated.");
-
-                if (iframeContainer) {
-                    iframeLeft = parseInt(iframeContainer.style.left);
-                    iframeTop = parseInt(iframeContainer.style.top);
-                    localStorage.setItem('iframeLeft', iframeLeft);
-                    localStorage.setItem('iframeTop', iframeTop);
-
-                    const iframes = document.querySelectorAll('iframe');
-                    iframes.forEach(iframe => {
-                        iframe.style.opacity = '0'; 
-                        iframe.style.transition = 'opacity 0.5s'; 
-                    });
-
-                    iframeContainer.classList.add('fade-out');
-
-                    iframeContainer.addEventListener('animationend', () => {
-                        document.body.removeChild(iframeContainer);
-                        iframeContainer = null; 
-                    });
-                }
+                iframeContainer.style.display = 'block'; 
+                iframeContainer.style.left = `${iframeLeft}px`; 
+                iframeContainer.style.top = `${iframeTop}px`; 
+                iframeContainer.style.width = `${iframeWidth}px`;  // Wiederherstellen der Breite
+                iframeContainer.style.height = `${iframeHeight}px`;  // Wiederherstellen der Höhe
             }
-        };
-
-        if (buttonWrapper) {
-            LiveMapButton.style.marginLeft = '5px';
-            buttonWrapper.appendChild(LiveMapButton);
-            debugLog('LIVEMAP button successfully added to button-wrapper.');
         } else {
-            console.error('buttonWrapper element not found. Adding LIVEMAP button to default location.');
-            const wrapperElement = document.querySelector('.tuner-info');
+            LiveMapButton.classList.remove('bg-color-4');
+            LiveMapButton.classList.add('bg-color-2');
+            debugLog("LIVEMAP deactivated.");
 
-            if (wrapperElement) {
-                const buttonWrapper = document.createElement('div');
-                buttonWrapper.classList.add('button-wrapper');
-                buttonWrapper.id = 'button-wrapper';
-                buttonWrapper.appendChild(LiveMapButton);
-                wrapperElement.appendChild(buttonWrapper);
-                const emptyLine = document.createElement('br');
-                wrapperElement.appendChild(emptyLine);
-            } else {
-                console.error('Default location not found. Unable to add LIVEMAP button.');
+            if (iframeContainer) {
+                iframeLeft = parseInt(iframeContainer.style.left);
+                iframeTop = parseInt(iframeContainer.style.top);
+                iframeWidth = parseInt(iframeContainer.style.width); // Breite speichern
+                iframeHeight = parseInt(iframeContainer.style.height); // Höhe speichern
+
+                localStorage.setItem('iframeLeft', iframeLeft);
+                localStorage.setItem('iframeTop', iframeTop);
+                localStorage.setItem('iframeWidth', iframeWidth); // Speichern der Breite
+                localStorage.setItem('iframeHeight', iframeHeight); // Speichern der Höhe
+
+                const iframes = document.querySelectorAll('iframe');
+                iframes.forEach(iframe => {
+                    iframe.style.opacity = '0'; 
+                    iframe.style.transition = 'opacity 0.5s'; 
+                });
+
+                iframeContainer.classList.add('fade-out');
+
+                iframeContainer.addEventListener('animationend', () => {
+                    document.body.removeChild(iframeContainer);
+                    iframeContainer = null; 
+                });
             }
         }
+    };
 
-        LiveMapActive = false;
-        LiveMapButton.classList.remove('bg-color-4');
-        LiveMapButton.classList.add('bg-color-2');
-        debugLog("LIVEMAP deactivated (default status).");
+    if (buttonWrapper) {
+        LiveMapButton.style.marginLeft = '5px';
+        buttonWrapper.appendChild(LiveMapButton);
+        debugLog('LIVEMAP button successfully added to button-wrapper.');
+    } else {
+        console.error('buttonWrapper element not found. Adding LIVEMAP button to default location.');
+        const wrapperElement = document.querySelector('.tuner-info');
+
+        if (wrapperElement) {
+            const buttonWrapper = document.createElement('div');
+            buttonWrapper.classList.add('button-wrapper');
+            buttonWrapper.id = 'button-wrapper';
+            buttonWrapper.appendChild(LiveMapButton);
+            wrapperElement.appendChild(buttonWrapper);
+            const emptyLine = document.createElement('br');
+            wrapperElement.appendChild(emptyLine);
+        } else {
+            console.error('Default location not found. Unable to add LIVEMAP button.');
+        }
     }
+
+    LiveMapActive = false;
+    LiveMapButton.classList.remove('bg-color-4');
+    LiveMapButton.classList.add('bg-color-2');
+    debugLog("LIVEMAP deactivated (default status).");
+}
+
 
     // Setup the WebSocket connection
     setupWebSocket();
