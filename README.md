@@ -2,7 +2,8 @@
 
 This plugin shows the detected reception (PI code/station ID) in realtime on a map.
 
-![image](https://github.com/user-attachments/assets/9730d4bc-2cc1-4834-8070-db2b71ad9850)
+![image](https://github.com/user-attachments/assets/9f8ad918-a32d-4b9f-9d3e-a8130aa4f037)
+
 
 
 
