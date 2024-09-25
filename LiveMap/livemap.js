@@ -27,7 +27,7 @@ let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 70; // Restore 
 let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120; // Restore from localStorage or use default
 
 (() => {
-    const plugin_version = 'V2.0 BETA';
+    const plugin_version = 'V2.0';
     let lastPicode = null;
     let lastFreq = null;
     let lastStationId = null;
