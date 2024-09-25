@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////
 ///                                                      /// 
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.0 BETA)      /// 
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.0)           /// 
 ///                                                      /// 
-///  by Highpoint                last update: 24.09.24   /// 
+///  by Highpoint                last update: 25.09.24   /// 
 ///                                                      /// 
 ///  https://github.com/Highpoint2000/LiveMap            /// 
 ///                                                      /// 
@@ -551,6 +551,7 @@ function createCloseButton() {
                 iframeContainer.style.position = 'fixed';
                 iframeContainer.style.opacity = '0'; 
                 iframeContainer.style.transition = 'opacity 0.5s'; 
+				iframeContainer.style.zIndex = '1000';
                 iframeContainer.appendChild(header); 
                 iframeContainer.appendChild(footer); 
                 iframeContainer.appendChild(closeButton); 
