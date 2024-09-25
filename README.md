@@ -20,6 +20,7 @@ This plugin shows the detected reception (PI code/station ID) in realtime on a m
 2.	Unpack the LiveMapPlugin.js and the LiveMap folder with the livemap.js into the web server plugins folder (..fm-dx-webserver-main\plugins)
 3. 	Restart the server
 4. 	Activate the plugin it in the settings
+5.	Read the LiveMapQuickGuide.pdf 
 
 ## Important notes: 
 
