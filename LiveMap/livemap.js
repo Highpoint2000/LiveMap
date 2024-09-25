@@ -571,7 +571,7 @@ function createCloseButton() {
                     if (!stationid) {
                         existingHeader.innerHTML = `${freq} MHz | ${picode}`;
                     } else {
-                        existingHeader.innerHTML = `${freq} MHz | ${picode} | ${station} from ${city} [${itu}] [${radius} km]`;
+                        existingHeader.innerHTML = `${freq} MHz | ${picode} | ${station} from ${city} [${itu}] [${distance} km]`;
                     }
                 }
 
