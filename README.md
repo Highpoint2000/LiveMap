@@ -8,8 +8,11 @@ This plugin shows the detected reception (PI code/station ID) in realtime on a m
 
 ## v2.0
 
+- new layout
 - Display of transmitters if no PI code is received
-- Filter for distances (150, 300, 700, 1000 km)
+- Filter for distances (100, 250, 500, 750, 1000 km)
+- TXPOS button for radius display around the transmitter position (details see LiveMapQuickGuide.pdf!)
+- Implemented PI code verification
 
 ## Installation notes:
 
