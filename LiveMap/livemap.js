@@ -34,6 +34,8 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
     let LiveMapActive = false;
     let picode, freq, itu, city, station, distance, ps, stationid, radius, coordinates, LAT, LON;
     let stationListContainer;
+	let foundPI;
+    let foundID;
 
     // Add custom CSS styles
     const style = document.createElement('style');
@@ -422,8 +424,8 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
 
     // Check for matching picode and station ID
     async function checkPicodeAndID(freq, picode, id) {
-        let foundPI = false;
-        let foundID = false;
+        foundPI = false;
+        foundID = false;
         coordinates = null;
 
         const cachedData = await getPicodeData(freq);
@@ -483,234 +485,323 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
         }
     }
 
-    // Function to fetch and cache station data from the API
-    async function fetchAndCacheStationData(freq, radius, txposLat, txposLon) {
-        try {
-            let response;
+const dbName = 'stationCacheDB';
+const storeName = 'stations';
 
-            if (stationid) {
-                response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}`);
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(dbName, 1);
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(storeName)) {
+                db.createObjectStore(storeName, { keyPath: 'cacheKey' });
+            }
+        };
+
+        request.onsuccess = (event) => {
+            resolve(event.target.result);
+        };
+
+        request.onerror = (event) => {
+            reject(`Error opening IndexedDB: ${event.target.errorCode}`);
+        };
+    });
+}
+
+function saveToCache(cacheKey, data) {
+    openDB().then((db) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        store.put({ cacheKey, data, timestamp: Date.now() });
+
+        tx.oncomplete = () => debugLog('Data saved to cache:', cacheKey);
+        tx.onerror = (event) => console.error('Error saving data to cache:', event);
+    });
+}
+
+function getFromCache(cacheKey) {
+    return new Promise((resolve, reject) => {
+        openDB().then((db) => {
+            const tx = db.transaction(storeName, 'readonly');
+            const store = tx.objectStore(storeName);
+            const request = store.get(cacheKey);
+
+            request.onsuccess = () => {
+                if (request.result) {
+                    resolve(request.result.data);
+                } else {
+                    resolve(null);
+                }
+            };
+
+            request.onerror = (event) => {
+                reject(`Error retrieving data from cache: ${event.target.errorCode}`);
+            };
+        });
+    });
+}
+
+async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid) {
+    const cacheKey = `${freq}_${radius}_${txposLat}_${txposLon}`;
+
+    try {
+        let data;
+
+        // Zuerst versuchen, die Daten aus dem Cache zu holen
+        const cachedData = await getFromCache(cacheKey);
+        if (cachedData) {
+            debugLog('Loaded data from cache:', cacheKey);
+            data = cachedData;  // Daten aus dem Cache verwenden
+        } else {
+            // API-Daten abrufen, wenn keine Daten im Cache vorhanden sind
+            let response;
+            const txposSwitch = document.getElementById('txposSwitch');
+
+            if (txposSwitch && txposSwitch.checked) {
+                if (!stationid) {
+                    response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${txposLat}&lon=${txposLon}&freq=${freq}&r=${radius}`);
+                } else {
+                    response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}`);
+                    txposLat = LAT;
+                    txposLon = LON;
+                }
             } else {
-                response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${txposLat}&lon=${txposLon}&freq=${freq}&r=${radius}`);
+                if (!stationid) {
+                    response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}&r=${radius}`);
+                } else {
+                    response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}`);
+                }
             }
 
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
 
-            const data = await response.json();
+            data = await response.json();
             debugLog('Fetched data from API:', data);
-            debugLog('Frequenz:', freq);
 
-            displayStationData(data, txposLat, txposLon);
-        } catch (error) {
-            console.error('Error fetching station data:', error);
+            // Daten nach erfolgreichem Abruf im Cache speichern
+            saveToCache(cacheKey, data);
         }
+
+        // Hier wird keine zusätzliche Verarbeitung durchgeführt
+        displayStationData(data, txposLat, txposLon);
+
+    } catch (error) {
+        console.error('Error fetching station data:', error);
+    }
+}
+
+// Function to display station data in a table
+function displayStationData(data, txposLat, txposLon) {
+
+    if (!data || !data.locations || typeof data.locations !== 'object') {
+        console.warn('No valid data received for station display.');
+        return;
     }
 
-    // Function to display station data in a table
-    function displayStationData(data, txposLat, txposLon) {
-        if (!data || !data.locations || typeof data.locations !== 'object') {
-            console.warn('No valid data received for station display.');
-            return;
+    const iframeContainer = document.getElementById('movableDiv');
+
+    if (!stationListContainer) {
+        stationListContainer = document.createElement('div');
+        stationListContainer.style.position = 'absolute';
+        stationListContainer.style.left = `${iframeContainer.offsetLeft}px`;
+        stationListContainer.style.top = `${iframeContainer.offsetTop + iframeContainer.offsetHeight}px`;
+        stationListContainer.classList.add('bg-color-2');
+        stationListContainer.style.padding = '15px';
+        stationListContainer.style.borderRadius = '0px 0px 15px 15px';
+        stationListContainer.style.zIndex = '1000';
+        stationListContainer.style.maxHeight = '190px';
+        stationListContainer.style.overflowY = 'scroll';
+        stationListContainer.style.visibility = 'block';
+        document.body.appendChild(stationListContainer);
+        
+        // Scrollbar styles for different browsers
+        stationListContainer.style.msOverflowStyle = 'none';  
+        stationListContainer.style.scrollbarWidth = 'none';  
+        stationListContainer.style.WebkitOverflowScrolling = 'touch';  
+        stationListContainer.style.overflowX = 'hidden';  
+    } else {
+        stationListContainer.style.left = `${iframeContainer.offsetLeft}px`;
+        stationListContainer.style.top = `${iframeContainer.offsetTop + iframeContainer.offsetHeight}px`;
+    }
+    
+    stationListContainer.innerHTML = '';
+
+    const stationsWithDistance = [];
+
+    for (const key in data.locations) {
+        const location = data.locations[key];
+
+        if (stationid) {
+            if (location.name.toLowerCase() !== city.toLowerCase()) {
+                continue;
+            }
         }
 
-        const iframeContainer = document.getElementById('movableDiv');
+        location.stations.forEach(station => {
+            const lat = parseFloat(location.lat);
+            const lon = parseFloat(location.lon);
+            const itu = location.itu || 'N/A';
 
-        if (!stationListContainer) {
-            stationListContainer = document.createElement('div');
-            stationListContainer.style.position = 'absolute';
-            stationListContainer.style.left = `${iframeContainer.offsetLeft}px`;
-            stationListContainer.style.top = `${iframeContainer.offsetTop + iframeContainer.offsetHeight}px`;
-            stationListContainer.classList.add('bg-color-2');
-            stationListContainer.style.padding = '15px';
-            stationListContainer.style.borderRadius = '0px 0px 15px 15px';
-            stationListContainer.style.zIndex = '1000';
-            stationListContainer.style.maxHeight = '190px';
-            stationListContainer.style.overflowY = 'scroll';
-            stationListContainer.style.visibility = 'none';
-            document.body.appendChild(stationListContainer);
-			
-			// Scrollbar styles for different browsers
-			stationListContainer.style.msOverflowStyle = 'none';  
-			stationListContainer.style.scrollbarWidth = 'none';  
-			stationListContainer.style.WebkitOverflowScrolling = 'touch';  
-			stationListContainer.style.overflowX = 'hidden';  
-    				
-			} else {
-				stationListContainer.style.left = `${iframeContainer.offsetLeft}px`;
-				stationListContainer.style.top = `${iframeContainer.offsetTop + iframeContainer.offsetHeight}px`;
-			}
-		
-        stationListContainer.innerHTML = '';
-
-        const stationsWithDistance = [];
-
-        for (const key in data.locations) {
-            const location = data.locations[key];
-
-            if (stationid) {
-                if (location.name.toLowerCase() !== city.toLowerCase()) {
-                    continue;
-                }
+            if (!isNaN(lat) && !isNaN(lon)) {
+                const distance = calculateDistance(txposLat, txposLon, lat, lon);
+                stationsWithDistance.push({
+                    station,
+                    city: location.name,
+                    distance: distance,
+                    pi: station.pi,
+                    erp: station.erp,
+                    id: station.id,
+                    itu: itu
+                });
             }
-
-            location.stations.forEach(station => {
-                const lat = parseFloat(location.lat);
-                const lon = parseFloat(location.lon);
-                const itu = location.itu || 'N/A';
-
-                if (!isNaN(lat) && !isNaN(lon)) {
-                    const distance = calculateDistance(txposLat, txposLon, lat, lon);
-                    stationsWithDistance.push({
-                        station,
-                        city: location.name,
-                        distance: distance,
-                        pi: station.pi,
-                        erp: station.erp,
-                        freq: parseFloat(station.freq).toFixed(3),
-                        id: station.id,
-                        itu: itu
-                    });
-                }
-            });
-        }
-
-        stationsWithDistance.sort((a, b) => a.distance - b.distance);
-
-        const table = document.createElement('table');
-        table.style.width = '100%';
-        table.style.borderCollapse = 'collapse';
-        table.style.fontSize = '13px';
-        table.classList.add('bg-color-2');
-        table.style.borderRadius = '15px';
-
-        let lastCity = '';
-
-        stationsWithDistance.forEach(({ station, city, distance, pi, erp, freq, id, itu }) => {
-            const row = document.createElement('tr');
-            row.style.margin = '0';
-            row.style.padding = '0';
-
-            if (city !== lastCity && lastCity !== '') {
-                const spacerRow = document.createElement('tr');
-                spacerRow.style.height = '15px';
-                table.appendChild(spacerRow);
-            }
-
-            if (station.id === stationid) {
-                row.classList.add('bg-color-1');
-            }
-
-            const freqCell = document.createElement('td');
-            freqCell.innerText = freq;
-            freqCell.style.padding = '0';
-            freqCell.style.paddingLeft = '0px';
-            freqCell.style.color = 'white';
-            freqCell.style.textAlign = 'right';
-            freqCell.style.width = '55px';
-            freqCell.style.maxWidth = '55px';
-            freqCell.style.overflow = 'hidden';
-            freqCell.style.whiteSpace = 'nowrap';
-            freqCell.style.textOverflow = 'ellipsis';
-            freqCell.style.textDecoration = 'underline';
-            freqCell.style.cursor = 'pointer';
-            row.appendChild(freqCell);
-
-            freqCell.onclick = () => {
-                const dataToSend = `T${(freq * 1000).toFixed(0)}`;
-                socket.send(dataToSend);
-                debugLog("WebSocket sending:", dataToSend);
-            };
-
-            const piCell = document.createElement('td');
-            piCell.innerText = pi;
-            piCell.style.padding = '0';
-            piCell.style.paddingLeft = '15px';
-            piCell.style.color = 'white';
-            piCell.style.width = '50px';
-            piCell.style.maxWidth = '50px';
-            piCell.style.overflow = 'hidden';
-            piCell.style.whiteSpace = 'nowrap';
-            piCell.style.textOverflow = 'ellipsis';
-            row.appendChild(piCell);
-
-            const stationCell = document.createElement('td');
-            stationCell.innerText = station.station;
-            stationCell.style.padding = '0';
-            stationCell.style.paddingLeft = '10px';
-            stationCell.style.color = 'white';
-            stationCell.style.width = '120px';
-            stationCell.style.maxWidth = '120px';
-            stationCell.style.overflow = 'hidden';
-            stationCell.style.whiteSpace = 'nowrap';
-            stationCell.style.textOverflow = 'ellipsis';
-            row.appendChild(stationCell);
-
-            const cityCell = document.createElement('td');
-            cityCell.innerText = `${city} [${itu}]`;
-            cityCell.style.padding = '0';
-            cityCell.style.paddingLeft = '15px';
-            cityCell.style.color = 'white';
-            cityCell.style.width = '120px';
-            cityCell.style.maxWidth = '120px';
-            cityCell.style.overflow = 'hidden';
-            cityCell.style.whiteSpace = 'nowrap';
-            cityCell.style.textOverflow = 'ellipsis';
-            row.appendChild(cityCell);
-
-            const distanceCell = document.createElement('td');
-            distanceCell.innerText = `${Math.round(distance)} km`;
-            distanceCell.style.padding = '0';
-            distanceCell.style.paddingLeft = '10px';
-            distanceCell.style.color = 'white';
-            distanceCell.style.textAlign = 'right';
-            distanceCell.style.width = '55px';
-            distanceCell.style.maxWidth = '55px';
-            distanceCell.style.overflow = 'hidden';
-            distanceCell.style.whiteSpace = 'nowrap';
-            distanceCell.style.textOverflow = 'ellipsis';
-            row.appendChild(distanceCell);
-
-            const erpCell = document.createElement('td');
-            erpCell.innerText = `${erp.toFixed(1)} kW`;
-            erpCell.style.padding = '0';
-            erpCell.style.paddingLeft = '10px';
-            erpCell.style.color = 'white';
-            erpCell.style.textAlign = 'right';
-            erpCell.style.width = '60px';
-            erpCell.style.maxWidth = '60px';
-            erpCell.style.overflow = 'hidden';
-            erpCell.style.whiteSpace = 'nowrap';
-            erpCell.style.textOverflow = 'ellipsis';
-            row.appendChild(erpCell);
-
-            const streamCell = document.createElement('td');
-            const streamLink = document.createElement('a');
-            streamLink.innerText = 'Listen';
-            streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
-            streamLink.style.color = 'white';
-            streamLink.style.cursor = 'pointer';
-            streamCell.appendChild(streamLink);
-            streamCell.style.textAlign = 'right';
-            streamCell.style.padding = '0';
-            streamCell.style.paddingLeft = '10px';
-            streamCell.style.paddingRight = '10px';
-            streamCell.style.width = '50px';
-            streamCell.style.maxWidth = '50px';
-            streamCell.style.overflow = 'hidden';
-            streamCell.style.whiteSpace = 'nowrap';
-            streamCell.style.textOverflow = 'ellipsis';
-            streamCell.style.textDecoration = 'underline';
-            row.appendChild(streamCell);
-
-            table.appendChild(row);
-            lastCity = city;
         });
-
-        stationListContainer.appendChild(table);
-        stationListContainer.style.width = `${iframeContainer.offsetWidth}px`;
     }
+
+    stationsWithDistance.sort((a, b) => a.distance - b.distance);
+
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.style.fontSize = '13px';
+    table.classList.add('bg-color-2');
+    table.style.borderRadius = '15px';
+
+    let lastCity = '';
+
+    stationsWithDistance.forEach(({ station, city, distance, pi, erp, id, itu }) => {
+        const row = document.createElement('tr');
+        row.style.margin = '0';
+        row.style.padding = '0';
+
+        if (city !== lastCity && lastCity !== '') {
+            const spacerRow = document.createElement('tr');
+            spacerRow.style.height = '15px';
+            table.appendChild(spacerRow);
+        }
+
+        // Add class if either station ID or frequency matches
+        if (station.id === stationid) {
+            row.classList.add('bg-color-1');
+        } else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
+			row.classList.add('bg-color-1');
+		} else if ((picode === '?' || !foundPI) && (parseFloat(freq) === parseFloat(station.freq))) {
+				row.classList.add('bg-color-1');
+		}
+
+        const freqCell = document.createElement('td');
+        freqCell.innerText = `${parseFloat(station.freq).toFixed(1)} MHz`;
+        freqCell.style.padding = '0';
+        freqCell.style.paddingLeft = '0px';
+        freqCell.style.color = 'white';
+        freqCell.style.textAlign = 'right';
+        freqCell.style.width = '55px';
+        freqCell.style.maxWidth = '55px';
+        freqCell.style.overflow = 'hidden';
+        freqCell.style.whiteSpace = 'nowrap';
+        freqCell.style.textOverflow = 'ellipsis';
+        freqCell.style.textDecoration = 'underline';
+        freqCell.style.cursor = 'pointer';
+        row.appendChild(freqCell);
+
+        freqCell.onclick = () => {
+            const dataToSend = `T${(parseFloat(station.freq) * 1000).toFixed(0)}`;
+            socket.send(dataToSend);
+            debugLog("WebSocket sending:", dataToSend);
+        };
+
+        const piCell = document.createElement('td');
+        piCell.innerText = pi;
+        piCell.style.padding = '0';
+        piCell.style.paddingLeft = '15px';
+        piCell.style.color = 'white';
+        piCell.style.width = '50px';
+        piCell.style.maxWidth = '50px';
+        piCell.style.overflow = 'hidden';
+        piCell.style.whiteSpace = 'nowrap';
+        piCell.style.textOverflow = 'ellipsis';
+        row.appendChild(piCell);
+
+        const stationCell = document.createElement('td');
+        stationCell.innerText = station.station;
+        stationCell.style.padding = '0';
+        stationCell.style.paddingLeft = '10px';
+        stationCell.style.color = 'white';
+        stationCell.style.width = '120px';
+        stationCell.style.maxWidth = '120px';
+        stationCell.style.overflow = 'hidden';
+        stationCell.style.whiteSpace = 'nowrap';
+        stationCell.style.textOverflow = 'ellipsis';
+        row.appendChild(stationCell);
+
+        const cityCell = document.createElement('td');
+        cityCell.innerText = `${city} [${itu}]`;
+        cityCell.style.padding = '0';
+        cityCell.style.paddingLeft = '15px';
+        cityCell.style.color = 'white';
+        cityCell.style.width = '120px';
+        cityCell.style.maxWidth = '120px';
+        cityCell.style.overflow = 'hidden';
+        cityCell.style.whiteSpace = 'nowrap';
+        cityCell.style.textOverflow = 'ellipsis';
+        row.appendChild(cityCell);
+
+        const distanceCell = document.createElement('td');
+        distanceCell.innerText = `${Math.round(distance)} km`;
+        distanceCell.style.padding = '0';
+        distanceCell.style.paddingLeft = '10px';
+        distanceCell.style.color = 'white';
+        distanceCell.style.textAlign = 'right';
+        distanceCell.style.width = '55px';
+        distanceCell.style.maxWidth = '55px';
+        distanceCell.style.overflow = 'hidden';
+        distanceCell.style.whiteSpace = 'nowrap';
+        distanceCell.style.textOverflow = 'ellipsis';
+        row.appendChild(distanceCell);
+
+        const erpCell = document.createElement('td');
+        erpCell.innerText = `${erp.toFixed(1)} kW`;
+        erpCell.style.padding = '0';
+        erpCell.style.paddingLeft = '10px';
+		erpCell.style.paddingRight = '5px';
+        erpCell.style.color = 'white';
+        erpCell.style.textAlign = 'right';
+        erpCell.style.width = '60px';
+        erpCell.style.maxWidth = '60px';
+        erpCell.style.overflow = 'hidden';
+        erpCell.style.whiteSpace = 'nowrap';
+        erpCell.style.textOverflow = 'ellipsis';
+        row.appendChild(erpCell);
+
+        const streamCell = document.createElement('td');
+        const streamLink = document.createElement('a');
+        streamLink.innerText = 'Stream';
+        streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
+        streamLink.style.color = 'white';
+        streamLink.style.cursor = 'pointer';
+        streamCell.appendChild(streamLink);
+        streamCell.style.textAlign = 'right';
+        streamCell.style.padding = '0';
+        streamCell.style.paddingLeft = '10px';
+        streamCell.style.paddingRight = '10px';
+        streamCell.style.width = '50px';
+        streamCell.style.maxWidth = '50px';
+        streamCell.style.overflow = 'hidden';
+        streamCell.style.whiteSpace = 'nowrap';
+        streamCell.style.textOverflow = 'ellipsis';
+        streamCell.style.textDecoration = 'underline';
+        row.appendChild(streamCell);
+
+        table.appendChild(row);
+        lastCity = city;
+    });
+
+    stationListContainer.appendChild(table);
+    stationListContainer.style.width = `${iframeContainer.offsetWidth}px`;
+}
+
 
     // Function to calculate the distance between two points using the Haversine formula
     function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -744,6 +835,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
         const txposSwitch = document.getElementById('txposSwitch');
 
         let txposLat, txposLon;
+			
         if (txposSwitch && txposSwitch.checked) {
             txposLat = localStorage.getItem('txposLat') || '0';
             txposLon = localStorage.getItem('txposLon') || '0';
@@ -828,7 +920,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
             lastStationId = stationid;
             lastFreq = freq;
 
-            await fetchAndCacheStationData(freq, radius, txposLat, txposLon);
+            await fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid);
 
             updateToggleSwitch(stationid);
         }
@@ -995,7 +1087,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
                         stationListContainer.classList.remove('fade-out');
                         stationListContainer.classList.add('fade-in');
                     }
-                }, 500);
+                }, 300);
             } else {
                 LiveMapButton.classList.remove('bg-color-4');
                 LiveMapButton.classList.add('bg-color-2');
