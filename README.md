@@ -5,13 +5,9 @@ This plugin shows the detected reception (PI code/station ID) in realtime on a m
 ![screensh](https://github.com/user-attachments/assets/f3c78e84-ea87-4c7d-b1f6-5de4dfbb0c99)
 
 
-## v2.0
+## v2.1 BETA
 
-- new layout
-- Display of transmitters if no PI code is received
-- Filter for distances (100, 250, 500, 750, 1000 km)
-- TXPOS button for radius display around the transmitter position (details see LiveMapQuickGuide.pdf!)
-- Implemented PI code verification
+- Frequency list with direct selection of the frequency for the FM-DX web server and direct link to the livestream
 
 ## Installation notes:
 
@@ -29,7 +25,15 @@ This plugin shows the detected reception (PI code/station ID) in realtime on a m
 
 ## History:
 
-## v1.2a
+### v2.0
+
+- new layout
+- Display of transmitters if no PI code is received
+- Filter for distances (100, 250, 500, 750, 1000 km)
+- TXPOS button for radius display around the transmitter position (details see LiveMapQuickGuide.pdf!)
+- Implemented PI code verification
+
+### v1.2a
 
 - Insert close X at the top-right corner
 
