@@ -530,11 +530,18 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
             stationListContainer.style.overflowY = 'scroll';
             stationListContainer.style.visibility = 'none';
             document.body.appendChild(stationListContainer);
-        } else {
-            stationListContainer.style.left = `${iframeContainer.offsetLeft}px`;
-            stationListContainer.style.top = `${iframeContainer.offsetTop + iframeContainer.offsetHeight}px`;
-        }
-
+			
+			// Scrollbar styles for different browsers
+			stationListContainer.style.msOverflowStyle = 'none';  
+			stationListContainer.style.scrollbarWidth = 'none';  
+			stationListContainer.style.WebkitOverflowScrolling = 'touch';  
+			stationListContainer.style.overflowX = 'hidden';  
+    				
+			} else {
+				stationListContainer.style.left = `${iframeContainer.offsetLeft}px`;
+				stationListContainer.style.top = `${iframeContainer.offsetTop + iframeContainer.offsetHeight}px`;
+			}
+		
         stationListContainer.innerHTML = '';
 
         const stationsWithDistance = [];
