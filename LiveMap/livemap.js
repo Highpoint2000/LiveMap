@@ -37,6 +37,8 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
     let stationListContainer;
     let foundPI;
     let foundID;
+	let latTX;
+	let lonTX;
 
     // Add custom CSS styles
     const style = document.createElement('style');
@@ -397,8 +399,11 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
         toggleSwitchContainer.appendChild(toggleSwitchLabel);
         footer.appendChild(toggleSwitchContainer);
         toggleSwitch.classList.add('disabled'); 
+		
+		const { lat, lon } = coordinates || {};
+		latTX = lat;
+		lonTX = lon;
 
-        const { lat, lon } = coordinates;
         input.addEventListener('change', async function() {
             if (this.checked) {
                 if (!stationid) {
@@ -406,9 +411,9 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
                     this.checked = false;
                     return;
                 }
-
-                localStorage.setItem('txposLat', lat);
-                localStorage.setItem('txposLon', lon);
+				console.log(latTX, lonTX);
+                localStorage.setItem('txposLat', latTX);
+                localStorage.setItem('txposLon', lonTX);
                 debugLog(`LIVEMAP TXPOS activated: LAT = ${lat}, LON = ${lon}`);
                 sendToast('info', 'Live Map', `TXPOS activated: ${city}[${itu}]`, true, false);    
             } else {
