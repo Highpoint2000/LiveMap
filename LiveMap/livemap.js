@@ -14,7 +14,7 @@ let ConsoleDebug = false;
 // Custom console log function
 function debugLog(...messages) {
     if (ConsoleDebug) {
-        console.log(...messages);
+        debugLog(...messages);
     }
 }
 
@@ -26,6 +26,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
 
 (() => {
     const plugin_version = 'V2.1 BETA';
+	const corsAnywhereUrl = 'https://cors-proxy.highpoint2000.synology.me:5001/';
     let lastPicode = null;
     let lastFreq = null;
     let lastStationId = null;
@@ -34,7 +35,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
     let LiveMapActive = false;
     let picode, freq, itu, city, station, distance, ps, stationid, radius, coordinates, LAT, LON;
     let stationListContainer;
-	let foundPI;
+    let foundPI;
     let foundID;
 
     // Add custom CSS styles
@@ -54,7 +55,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
     }
     
     .fade-in {
-        animation: fadeInAnimation 0.5s forwards;
+        animation: fadeInAnimation 1.0s forwards;
     }
 
     @keyframes fadeInAnimation {
@@ -143,6 +144,55 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
     }
     `;
     document.head.appendChild(style);
+
+    // Function to create the toggle button
+    function createToggleButton() {
+        const toggleButton = document.createElement('div');
+        toggleButton.style.width = '10px';
+        toggleButton.style.height = '10px';
+        toggleButton.style.backgroundColor = 'red'; // Set the background color to red
+        toggleButton.style.position = 'absolute';
+        toggleButton.style.bottom = '0px'; // Position from the bottom
+        toggleButton.style.left = '0px'; // Position from the left
+        toggleButton.style.cursor = 'pointer';
+        toggleButton.style.zIndex = '1000'; // Ensures the button is on top
+        toggleButton.title = 'Toggle Station List';
+
+        // Add the toggle functionality
+        toggleButton.onclick = () => {
+            if (!stationListContainer) {
+                console.error('stationListContainer is not defined.');
+                return;
+            }
+
+            const stationListVisible = stationListContainer.style.visibility === 'visible';
+
+            if (stationListVisible) {
+                // Hide station list
+                stationListContainer.classList.remove('fade-in');
+                stationListContainer.classList.add('fade-out');
+                stationListContainer.addEventListener('animationend', function handler() {
+                    stationListContainer.style.opacity = '0';
+                    stationListContainer.style.visibility = 'hidden';
+                    stationListContainer.removeEventListener('animationend', handler);
+                });
+
+                // Save state to localStorage
+                localStorage.setItem('stationListVisible', 'hidden');
+            } else {
+                // Show station list
+                stationListContainer.style.opacity = '1';
+                stationListContainer.style.visibility = 'visible';
+                stationListContainer.classList.remove('fade-out');
+                stationListContainer.classList.add('fade-in');
+
+                // Save state to localStorage
+                localStorage.setItem('stationListVisible', 'visible');
+            }
+        };
+
+        return toggleButton;
+    }
 
     // Update toggle switch based on stationid
     function updateToggleSwitch(stationid) {
@@ -372,470 +422,677 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
         return footer;
     }
 
-    const corsAnywhereUrl = 'https://cors-proxy.highpoint2000.synology.me:5001/';
-
-    // IndexedDB setup function
-    function openIndexedDB() {
+    // Function to open (or create) the IndexedDB database
+    function openCacheDB() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open('picodeDatabase', 1);
+            const request = indexedDB.open('apiCacheDB', 1);
 
-            request.onupgradeneeded = function(event) {
+            request.onupgradeneeded = (event) => {
                 const db = event.target.result;
-                if (!db.objectStoreNames.contains('picodeStore')) {
-                    db.createObjectStore('picodeStore', { keyPath: 'freq' });
+                if (!db.objectStoreNames.contains('apiCache')) {
+                    db.createObjectStore('apiCache', { keyPath: 'key' });
                 }
             };
 
-            request.onsuccess = function(event) {
+            request.onsuccess = (event) => {
                 resolve(event.target.result);
             };
 
-            request.onerror = function(event) {
-                reject('Error opening IndexedDB: ' + event.target.errorCode);
+            request.onerror = (event) => {
+                reject('IndexedDB error: ' + event.target.errorCode);
             };
         });
     }
 
-    // Save data in IndexedDB
-    async function savePicodeData(freq, data) {
-        const db = await openIndexedDB();
-        const transaction = db.transaction(['picodeStore'], 'readwrite');
-        const store = transaction.objectStore('picodeStore');
-        store.put({ freq, data });
-    }
-
-    // Retrieve data from IndexedDB
-    async function getPicodeData(freq) {
-        const db = await openIndexedDB();
+    // Function to get cached data
+    function getCachedData(db, key) {
         return new Promise((resolve, reject) => {
-            const transaction = db.transaction(['picodeStore'], 'readonly');
-            const store = transaction.objectStore('picodeStore');
-            const request = store.get(freq);
+            const transaction = db.transaction(['apiCache'], 'readonly');
+            const store = transaction.objectStore('apiCache');
+            const request = store.get(key);
 
-            request.onsuccess = function(event) {
-                resolve(event.target.result ? event.target.result.data : null);
-            };
-
-            request.onerror = function(event) {
-                reject('Error retrieving data: ' + event.target.errorCode);
-            };
-        });
-    }
-
-    // Check for matching picode and station ID
-    async function checkPicodeAndID(freq, picode, id) {
-        foundPI = false;
-        foundID = false;
-        coordinates = null;
-
-        const cachedData = await getPicodeData(freq);
-
-        if (cachedData && !picode.includes('?')) {
-            debugLog('LIVEMAP using cached data from IndexedDB');
-
-            if (typeof cachedData.locations === 'object') {
-                for (const key in cachedData.locations) {
-                    const location = cachedData.locations[key];
-                    const stations = location.stations;
-
-                    if (Array.isArray(stations)) {
-                        foundPI = stations.some(station => station.pi === picode);
-                        foundID = stations.some(station => station.id === id);
-
-                        if (foundPI || foundID) {
-                            debugLog(`LIVEMAP found match for picode: ${picode} or id: ${id} in cached data`);
-                            coordinates = { lat: location.lat, lon: location.lon };
-                            if (foundPI && foundID) break;
-                        }
-                    }
-                }
-            }
-            return { foundPI, foundID, coordinates };
-        }
-
-        try {
-            const response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?freq=${freq}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            const data = await response.json();
-            await savePicodeData(freq, data);
-
-            if (typeof data.locations === 'object') {
-                for (const key in data.locations) {
-                    const location = data.locations[key];
-                    const stations = location.stations;
-
-                    if (Array.isArray(stations)) {
-                        foundPI = stations.some(station => station.pi === picode);
-                        foundID = stations.some(station => station.id === id);
-
-                        if (foundPI || foundID) {
-                            debugLog(`LIVEMAP found match for picode: ${picode} or id: ${id} in fetched data`);
-                            coordinates = { lat: location.lat, lon: location.lon };
-                            if (foundPI && foundID) break;
-                        }
-                    }
-                }
-            }
-            return { foundPI, foundID, coordinates };
-        } catch (error) {
-            console.error('Error checking picode and id:', error);
-            return { foundPI: false, foundID: false, coordinates: null };
-        }
-    }
-
-const dbName = 'stationCacheDB';
-const storeName = 'stations';
-
-function openDB() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(dbName, 1);
-        
-        request.onupgradeneeded = (event) => {
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains(storeName)) {
-                db.createObjectStore(storeName, { keyPath: 'cacheKey' });
-            }
-        };
-
-        request.onsuccess = (event) => {
-            resolve(event.target.result);
-        };
-
-        request.onerror = (event) => {
-            reject(`Error opening IndexedDB: ${event.target.errorCode}`);
-        };
-    });
-}
-
-function saveToCache(cacheKey, data) {
-    openDB().then((db) => {
-        const tx = db.transaction(storeName, 'readwrite');
-        const store = tx.objectStore(storeName);
-        store.put({ cacheKey, data, timestamp: Date.now() });
-
-        tx.oncomplete = () => debugLog('Data saved to cache:', cacheKey);
-        tx.onerror = (event) => console.error('Error saving data to cache:', event);
-    });
-}
-
-function getFromCache(cacheKey) {
-    return new Promise((resolve, reject) => {
-        openDB().then((db) => {
-            const tx = db.transaction(storeName, 'readonly');
-            const store = tx.objectStore(storeName);
-            const request = store.get(cacheKey);
-
-            request.onsuccess = () => {
-                if (request.result) {
-                    resolve(request.result.data);
-                } else {
-                    resolve(null);
-                }
+            request.onsuccess = (event) => {
+                resolve(event.target.result);
             };
 
             request.onerror = (event) => {
-                reject(`Error retrieving data from cache: ${event.target.errorCode}`);
+                reject('Failed to get cached data');
             };
         });
-    });
-}
+    }
 
-async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid) {
-    const cacheKey = `${freq}_${radius}_${txposLat}_${txposLon}`;
+    // Function to cache data
+    function cacheData(db, key, data) {
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['apiCache'], 'readwrite');
+            const store = transaction.objectStore('apiCache');
+            const request = store.put({ key, data });
 
-    try {
-        let data;
+            request.onsuccess = () => {
+                resolve();
+            };
 
-        // Zuerst versuchen, die Daten aus dem Cache zu holen
-        const cachedData = await getFromCache(cacheKey);
-        if (cachedData) {
-            debugLog('Loaded data from cache:', cacheKey);
-            data = cachedData;  // Daten aus dem Cache verwenden
-        } else {
-            // API-Daten abrufen, wenn keine Daten im Cache vorhanden sind
+            request.onerror = (event) => {
+                reject('Failed to cache data: ' + event.target.errorCode);
+            };
+        });
+    }
+
+    // Main function with cache mechanism
+    async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid, foundPI) {
+
+        try {
             let response;
             const txposSwitch = document.getElementById('txposSwitch');
+            const db = await openCacheDB();
+            
+            // Create a cache key based on the parameters
+            const cacheKey = `freq:${freq}-lat:${txposLat}-lon:${txposLon}-radius:${radius}-picode:${picode}-stationid:${stationid}`;
+            
+            // Check if data is already in cache
+            const cachedData = await getCachedData(db, cacheKey);
+            if (cachedData) {
+                debugLog('Returning cached data:', cachedData);
+                displayStationData(cachedData.data, txposLat, txposLon, picode, foundPI);
+                return;
+            }
 
+            // If no cached data, make the API request
             if (txposSwitch && txposSwitch.checked) {
-                if (!stationid) {
-                    response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${txposLat}&lon=${txposLon}&freq=${freq}&r=${radius}`);
-                } else {
+                if (stationid) {
                     response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}`);
                     txposLat = LAT;
                     txposLon = LON;
+                } else {
+                    response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${txposLat}&lon=${txposLon}&freq=${freq}&r=${radius}`);
                 }
             } else {
-                if (!stationid) {
-                    response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}&r=${radius}`);
-                } else {
+
+                if (stationid || picode !== '?' && foundPI) {
                     response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}`);
-                }
+                } else {
+                    response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}&r=${radius}`);       
+            }
             }
 
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
 
-            data = await response.json();
+            const data = await response.json();
             debugLog('Fetched data from API:', data);
 
-            // Daten nach erfolgreichem Abruf im Cache speichern
-            saveToCache(cacheKey, data);
+            // Cache the API response
+            await cacheData(db, cacheKey, data);
+
+            // Display the station data
+            displayStationData(data, txposLat, txposLon, picode, foundPI);
+
+        } catch (error) {
+            console.error('Error fetching station data:', error);
         }
-
-        // Hier wird keine zusätzliche Verarbeitung durchgeführt
-        displayStationData(data, txposLat, txposLon);
-
-    } catch (error) {
-        console.error('Error fetching station data:', error);
-    }
-}
-
-// Function to display station data in a table
-function displayStationData(data, txposLat, txposLon) {
-
-    if (!data || !data.locations || typeof data.locations !== 'object') {
-        console.warn('No valid data received for station display.');
-        return;
     }
 
-    const iframeContainer = document.getElementById('movableDiv');
-
-    if (!stationListContainer) {
-        stationListContainer = document.createElement('div');
-        stationListContainer.style.position = 'absolute';
-        stationListContainer.style.left = `${iframeContainer.offsetLeft}px`;
-        stationListContainer.style.top = `${iframeContainer.offsetTop + iframeContainer.offsetHeight}px`;
-        stationListContainer.classList.add('bg-color-2');
-        stationListContainer.style.padding = '15px';
-        stationListContainer.style.borderRadius = '0px 0px 15px 15px';
-        stationListContainer.style.zIndex = '1000';
-        stationListContainer.style.maxHeight = '190px';
-        stationListContainer.style.overflowY = 'scroll';
-        stationListContainer.style.visibility = 'block';
-        document.body.appendChild(stationListContainer);
-        
-        // Scrollbar styles for different browsers
-        stationListContainer.style.msOverflowStyle = 'none';  
-        stationListContainer.style.scrollbarWidth = 'none';  
-        stationListContainer.style.WebkitOverflowScrolling = 'touch';  
-        stationListContainer.style.overflowX = 'hidden';  
-    } else {
-        stationListContainer.style.left = `${iframeContainer.offsetLeft}px`;
-        stationListContainer.style.top = `${iframeContainer.offsetTop + iframeContainer.offsetHeight}px`;
-    }
-    
-    stationListContainer.innerHTML = '';
-
-    const stationsWithDistance = [];
-
-    for (const key in data.locations) {
-        const location = data.locations[key];
-
-        if (stationid) {
-            if (location.name.toLowerCase() !== city.toLowerCase()) {
-                continue;
-            }
-        }
-
-        location.stations.forEach(station => {
-            const lat = parseFloat(location.lat);
-            const lon = parseFloat(location.lon);
-            const itu = location.itu || 'N/A';
-
-            if (!isNaN(lat) && !isNaN(lon)) {
-                const distance = calculateDistance(txposLat, txposLon, lat, lon);
-                stationsWithDistance.push({
-                    station,
-                    city: location.name,
-                    distance: distance,
-                    pi: station.pi,
-                    erp: station.erp,
-                    id: station.id,
-                    itu: itu
-                });
-            }
-        });
-    }
-
-    stationsWithDistance.sort((a, b) => a.distance - b.distance);
-
-    const table = document.createElement('table');
-    table.style.width = '100%';
-    table.style.borderCollapse = 'collapse';
-    table.style.fontSize = '13px';
-    table.classList.add('bg-color-2');
-    table.style.borderRadius = '15px';
-
-    let lastCity = '';
-
-    stationsWithDistance.forEach(({ station, city, distance, pi, erp, id, itu }) => {
-        const row = document.createElement('tr');
-        row.style.margin = '0';
-        row.style.padding = '0';
-
-        if (city !== lastCity && lastCity !== '') {
-            const spacerRow = document.createElement('tr');
-            spacerRow.style.height = '15px';
-            table.appendChild(spacerRow);
-        }
-
-        // Add class if either station ID or frequency matches
-        if (station.id === stationid) {
-            row.classList.add('bg-color-1');
-        } else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
-			row.classList.add('bg-color-1');
-		} else if ((picode === '?' || !foundPI) && (parseFloat(freq) === parseFloat(station.freq))) {
-				row.classList.add('bg-color-1');
-		}
-
-        const freqCell = document.createElement('td');
-        freqCell.innerText = `${parseFloat(station.freq).toFixed(1)} MHz`;
-        freqCell.style.padding = '0';
-        freqCell.style.paddingLeft = '0px';
-        freqCell.style.color = 'white';
-        freqCell.style.textAlign = 'right';
-        freqCell.style.width = '55px';
-        freqCell.style.maxWidth = '55px';
-        freqCell.style.overflow = 'hidden';
-        freqCell.style.whiteSpace = 'nowrap';
-        freqCell.style.textOverflow = 'ellipsis';
-        freqCell.style.textDecoration = 'underline';
-        freqCell.style.cursor = 'pointer';
-        row.appendChild(freqCell);
-
-        freqCell.onclick = () => {
-            const dataToSend = `T${(parseFloat(station.freq) * 1000).toFixed(0)}`;
-            socket.send(dataToSend);
-            debugLog("WebSocket sending:", dataToSend);
-        };
-
-        const piCell = document.createElement('td');
-        piCell.innerText = pi;
-        piCell.style.padding = '0';
-        piCell.style.paddingLeft = '15px';
-        piCell.style.color = 'white';
-        piCell.style.width = '50px';
-        piCell.style.maxWidth = '50px';
-        piCell.style.overflow = 'hidden';
-        piCell.style.whiteSpace = 'nowrap';
-        piCell.style.textOverflow = 'ellipsis';
-        row.appendChild(piCell);
-
-        const stationCell = document.createElement('td');
-        stationCell.innerText = station.station;
-        stationCell.style.padding = '0';
-        stationCell.style.paddingLeft = '10px';
-        stationCell.style.color = 'white';
-        stationCell.style.width = '120px';
-        stationCell.style.maxWidth = '120px';
-        stationCell.style.overflow = 'hidden';
-        stationCell.style.whiteSpace = 'nowrap';
-        stationCell.style.textOverflow = 'ellipsis';
-        row.appendChild(stationCell);
-
-        const cityCell = document.createElement('td');
-        cityCell.innerText = `${city} [${itu}]`;
-        cityCell.style.padding = '0';
-        cityCell.style.paddingLeft = '15px';
-        cityCell.style.color = 'white';
-        cityCell.style.width = '120px';
-        cityCell.style.maxWidth = '120px';
-        cityCell.style.overflow = 'hidden';
-        cityCell.style.whiteSpace = 'nowrap';
-        cityCell.style.textOverflow = 'ellipsis';
-        row.appendChild(cityCell);
-
-        const distanceCell = document.createElement('td');
-        distanceCell.innerText = `${Math.round(distance)} km`;
-        distanceCell.style.padding = '0';
-        distanceCell.style.paddingLeft = '10px';
-        distanceCell.style.color = 'white';
-        distanceCell.style.textAlign = 'right';
-        distanceCell.style.width = '55px';
-        distanceCell.style.maxWidth = '55px';
-        distanceCell.style.overflow = 'hidden';
-        distanceCell.style.whiteSpace = 'nowrap';
-        distanceCell.style.textOverflow = 'ellipsis';
-        row.appendChild(distanceCell);
-
-        const erpCell = document.createElement('td');
-        erpCell.innerText = `${erp.toFixed(1)} kW`;
-        erpCell.style.padding = '0';
-        erpCell.style.paddingLeft = '10px';
-		erpCell.style.paddingRight = '5px';
-        erpCell.style.color = 'white';
-        erpCell.style.textAlign = 'right';
-        erpCell.style.width = '60px';
-        erpCell.style.maxWidth = '60px';
-        erpCell.style.overflow = 'hidden';
-        erpCell.style.whiteSpace = 'nowrap';
-        erpCell.style.textOverflow = 'ellipsis';
-        row.appendChild(erpCell);
-
-        const streamCell = document.createElement('td');
-        const streamLink = document.createElement('a');
-        streamLink.innerText = 'Stream';
-        streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
-        streamLink.style.color = 'white';
-        streamLink.style.cursor = 'pointer';
-        streamCell.appendChild(streamLink);
-        streamCell.style.textAlign = 'right';
-        streamCell.style.padding = '0';
-        streamCell.style.paddingLeft = '10px';
-        streamCell.style.paddingRight = '10px';
-        streamCell.style.width = '50px';
-        streamCell.style.maxWidth = '50px';
-        streamCell.style.overflow = 'hidden';
-        streamCell.style.whiteSpace = 'nowrap';
-        streamCell.style.textOverflow = 'ellipsis';
-        streamCell.style.textDecoration = 'underline';
-        row.appendChild(streamCell);
-
-        table.appendChild(row);
-        lastCity = city;
-    });
-
-    stationListContainer.appendChild(table);
-    stationListContainer.style.width = `${iframeContainer.offsetWidth}px`;
-}
-
-
-    // Function to calculate the distance between two points using the Haversine formula
+    // Function to calculate the distance between two geographical points
     function calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371; 
-        const dLat = (lat2 - lat1) * (Math.PI / 180);
-        const dLon = (lon2 - lon1) * (Math.PI / 180);
+        const R = 6371; // Radius of the Earth in kilometers
+        const dLat = toRadians(lat2 - lat1);
+        const dLon = toRadians(lon2 - lon1);
         const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                  Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+                  Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
                   Math.sin(dLon / 2) * Math.sin(dLon / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
     }
 
+    // Convert degrees to radians
+    function toRadians(degrees) {
+        return degrees * (Math.PI / 180);
+    }
+
+    async function displayStationData(data, txposLat, txposLon, picode, foundPI) {
+        if (!data || !data.locations || typeof data.locations !== 'object') {
+            console.warn('No valid data received for station display.');
+            return;
+        }
+
+        const iframeContainer = document.getElementById('movableDiv');
+
+        if (!stationListContainer) {
+            stationListContainer = document.createElement('div');
+            stationListContainer.style.position = 'absolute';
+            stationListContainer.style.left = `${iframeContainer.offsetLeft}px`;
+            stationListContainer.style.top = `${iframeContainer.offsetTop + iframeContainer.offsetHeight}px`;
+            stationListContainer.classList.add('bg-color-2');
+            stationListContainer.style.padding = '15px';
+            stationListContainer.style.borderRadius = '0px 0px 15px 15px';
+            stationListContainer.style.zIndex = '1000';
+            stationListContainer.style.maxHeight = '190px';
+            stationListContainer.style.overflowY = 'scroll';
+            stationListContainer.style.visibility = 'visible'; 
+            document.body.appendChild(stationListContainer);
+        } else {
+            stationListContainer.style.left = `${iframeContainer.offsetLeft}px`;
+            stationListContainer.style.top = `${iframeContainer.offsetTop + iframeContainer.offsetHeight}px`;
+        }
+
+        stationListContainer.style.msOverflowStyle = 'none';  
+        stationListContainer.style.scrollbarWidth = 'none';  
+        stationListContainer.style.WebkitOverflowScrolling = 'touch';  
+        stationListContainer.style.overflowX = 'hidden';  
+        stationListContainer.innerHTML = ''; 
+
+        const stationsWithCoordinates = [];
+        const allStations = [];
+
+        for (const key in data.locations) {
+            const location = data.locations[key];
+            location.stations.forEach(station => {
+                const lat = parseFloat(location.lat);
+                const lon = parseFloat(location.lon);
+                const itu = location.itu || 'N/A';
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    const stationData = {
+                        station,
+                        city: location.name,
+                        lat, 
+                        lon,
+                        pi: station.pi,
+                        erp: station.erp,
+                        id: station.id,
+                        itu,
+                        freq: parseFloat(station.freq)
+                    };
+                    stationsWithCoordinates.push(stationData);
+                    allStations.push(stationData);
+                }
+            });
+        }
+
+        stationsWithCoordinates.sort((a, b) => {
+            const distA = Math.abs(a.lat - txposLat) + Math.abs(a.lon - txposLon);
+            const distB = Math.abs(b.lat - txposLat) + Math.abs(b.lon - txposLon);
+            return distA - distB;
+        });
+
+        const filteredStations = stationsWithCoordinates.filter(station => {
+        
+            if (stationid) {
+                return station.id === stationid;
+            } else if (picode !== '?' && station.pi && foundPI) {
+                return picode === station.pi && parseFloat(station.freq) === parseFloat(freq);
+            } else if (station.pi) {
+                return parseFloat(station.freq) === parseFloat(freq);
+            }
+        });
+
+        const table = document.createElement('table');
+        table.style.width = '100%';
+        table.style.borderCollapse = 'collapse';
+        table.style.fontSize = '13px';
+        table.classList.add('bg-color-2');
+        table.style.borderRadius = '15px';
+        table.style.margin = '0 auto';
+        table.style.textAlign = 'left';
+
+        filteredStations.forEach(({ station, city, lat, lon, pi, erp, id, itu }) => {
+            const row = document.createElement('tr');
+            row.style.margin = '0';
+            row.style.padding = '0';
+
+            if (station.id === stationid) {
+                row.classList.add('bg-color-1');
+            } else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
+                row.classList.add('bg-color-1');
+            }
+
+            const streamCell = document.createElement('td');
+            const streamLink = document.createElement('a');
+            const playIcon = document.createElement('i');
+            playIcon.className = 'fas fa-play';
+            playIcon.style.color = 'green';
+            playIcon.style.cursor = 'pointer';
+
+            streamLink.appendChild(playIcon);
+            streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
+            streamLink.style.color = 'green';
+            streamLink.style.textDecoration = 'none';
+            streamLink.title = 'play livestream';
+            streamCell.appendChild(streamLink);
+            streamCell.style.paddingLeft = '10px';
+            streamCell.style.paddingRight = '18px';
+            streamCell.style.textAlign = 'left';
+            streamCell.style.overflow = 'hidden';
+            streamCell.style.whiteSpace = 'nowrap';
+            streamCell.style.textOverflow = 'ellipsis';
+            row.appendChild(streamCell);
+
+            const freqCell = document.createElement('td');
+            freqCell.innerText = `${station.freq.toFixed(1)} MHz`;
+            freqCell.style.maxWidth = '90px';
+            freqCell.style.padding = '0';
+            freqCell.style.color = 'white';
+            freqCell.style.textAlign = 'right';
+            freqCell.style.overflow = 'hidden';
+            freqCell.style.whiteSpace = 'nowrap';
+            freqCell.style.textOverflow = 'ellipsis';
+            row.appendChild(freqCell);
+
+            const piCell = document.createElement('td');
+            piCell.innerText = pi;
+            piCell.style.maxWidth = '50px';
+            piCell.style.padding = '0';
+            piCell.style.paddingLeft = '15px';
+            piCell.style.color = 'white';
+            piCell.style.overflow = 'hidden';
+            piCell.style.whiteSpace = 'nowrap';
+            piCell.style.textOverflow = 'ellipsis';
+            row.appendChild(piCell);
+
+            const stationCell = document.createElement('td');
+            stationCell.innerText = station.station;
+            stationCell.style.maxWidth = '200px';
+            stationCell.style.padding = '0';
+            stationCell.style.paddingLeft = '10px';
+            stationCell.style.color = 'white';
+            stationCell.style.overflow = 'hidden';
+            stationCell.style.whiteSpace = 'nowrap';
+            stationCell.style.textOverflow = 'ellipsis';
+            row.appendChild(stationCell);
+
+            const cityCell = document.createElement('td');
+            cityCell.innerText = `${city} [${itu}]`;
+            cityCell.style.maxWidth = '200px';
+            cityCell.style.padding = '0';
+            cityCell.style.paddingLeft = '15px';
+            cityCell.title = 'open location list';
+            cityCell.style.color = 'white';
+            cityCell.style.overflow = 'hidden';
+            cityCell.style.whiteSpace = 'nowrap';
+            cityCell.style.textOverflow = 'ellipsis';
+            cityCell.style.cursor = 'pointer';
+            row.appendChild(cityCell);
+
+            cityCell.addEventListener('mouseover', () => {
+                cityCell.style.textDecoration = 'underline';
+                cityCell.style.color = 'var(--color-5)';
+            });
+
+            cityCell.addEventListener('mouseout', () => {
+                cityCell.style.textDecoration = 'none';
+                cityCell.style.color = 'white';
+            });
+
+            const erpCell = document.createElement('td');
+            erpCell.innerText = `${erp.toFixed(1)} kW`;
+            erpCell.style.maxWidth = '120px';
+            erpCell.style.padding = '0';
+            erpCell.style.paddingLeft = '10px';
+            erpCell.style.paddingRight = '10px';
+            erpCell.style.color = 'white';
+            erpCell.style.textAlign = 'right';
+            erpCell.style.overflow = 'hidden';
+            erpCell.style.whiteSpace = 'nowrap';
+            erpCell.style.textOverflow = 'ellipsis';
+
+            if (erp < 0.5) {
+                // ERP less than 0.5 kW, set background color to purple
+                erpCell.style.backgroundColor = '#7800FF';
+            } else if (erp >= 0.5 && erp < 5.0) {
+                // ERP between 0.5 kW and 5.0 kW, set background color to blue
+                erpCell.style.backgroundColor = '#238BFF';
+            } else if (erp >= 5.0) {
+                // ERP greater than or equal to 5.0 kW, set background color to dark blue
+                erpCell.style.backgroundColor = '#0000FF';
+            }
+
+            // Append the ERP cell to the row
+            row.appendChild(erpCell);
+            
+            // Append the row to the table
+            table.appendChild(row);
+        });
+
+        // Add the table with stations to the station list container
+        stationListContainer.appendChild(table);
+        stationListContainer.style.width = `${iframeContainer.offsetWidth}px`;
+
+        // Allow clicking on the city cells to display more stations from the same city
+        const cityCells = table.querySelectorAll('td:nth-child(5)');
+        cityCells.forEach(cell => {
+            cell.style.cursor = 'pointer';
+            cell.onclick = () => {
+                const cityToDisplay = cell.innerText.split(' [')[0];
+
+                const cityStation = allStations.find(station => station.city === cityToDisplay);
+                if (!cityStation) {
+                    console.warn('City not found:', cityToDisplay);
+                    return;
+                }
+
+                const distanceToCity = calculateDistance(txposLat, txposLon, cityStation.lat, cityStation.lon);
+                const stationsOfCity = allStations.filter(station => station.city === cityToDisplay);
+
+                // Clear the table before displaying stations from the selected city
+                table.innerHTML = '';
+
+                // Iterate through the stations from the same city and create table rows
+                stationsOfCity.forEach(({ station, city, distance, pi, erp, id, itu }) => {
+                    const row = document.createElement('tr');
+
+                    // Highlight the row if it's the current station
+                    if (station.id === stationid) {
+                        row.classList.add('bg-color-1');
+                    } else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
+                        row.classList.add('bg-color-1');
+                    }
+
+                    // Create a cell with a link to the station stream
+                    const streamCell = document.createElement('td');
+                    const streamLink = document.createElement('a');
+                    const playIcon = document.createElement('i');
+                    playIcon.className = 'fas fa-play';
+                    playIcon.style.color = 'green';
+                    playIcon.style.cursor = 'pointer';
+
+                    streamLink.appendChild(playIcon);
+                    streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
+                    streamLink.style.color = 'green';
+                    streamLink.style.textDecoration = 'none';
+                    streamLink.title = 'play livestream';
+                    streamCell.appendChild(streamLink);
+                    streamCell.style.paddingLeft = '10px';
+                    streamCell.style.paddingRight = '0px';
+                    streamCell.style.textAlign = 'left';
+                    streamCell.style.overflow = 'hidden';
+                    streamCell.style.whiteSpace = 'nowrap';
+                    streamCell.style.textOverflow = 'ellipsis';
+                    row.appendChild(streamCell);
+
+                    // Create and append a cell for the frequency
+                    const freqCellStation = document.createElement('td');
+                    freqCellStation.innerText = `${station.freq.toFixed(1)} MHz`;
+                    freqCellStation.style.maxWidth = '90px';
+                    freqCellStation.style.padding = '0';
+                    freqCellStation.style.color = 'white';
+                    freqCellStation.style.textAlign = 'right';
+                    freqCellStation.style.cursor = 'pointer';
+                    freqCellStation.style.overflow = 'hidden';
+                    freqCellStation.style.whiteSpace = 'nowrap';
+                    freqCellStation.style.textOverflow = 'ellipsis';
+                    row.appendChild(freqCellStation);
+
+                    // Add hover effect and click event for sending frequency data over WebSocket
+                    freqCellStation.addEventListener('mouseover', () => {
+                        freqCellStation.style.textDecoration = 'underline';
+                        freqCellStation.style.color = 'var(--color-4)';
+                    });
+
+                    freqCellStation.addEventListener('mouseout', () => {
+                        freqCellStation.style.textDecoration = 'none';
+                        freqCellStation.style.color = 'white';
+                    });
+
+                    freqCellStation.onclick = () => {
+                        const dataToSend = `T${(parseFloat(station.freq) * 1000).toFixed(0)}`;
+                        socket.send(dataToSend);
+                        debugLog("WebSocket sending:", dataToSend);
+                    };
+
+                    // Create and append the PI code cell
+                    const piCell = document.createElement('td');
+                    piCell.innerText = pi;
+                    piCell.style.maxWidth = '50px';
+                    piCell.style.padding = '0';
+                    piCell.style.paddingLeft = '15px';
+                    piCell.style.color = 'white';
+                    piCell.style.overflow = 'hidden';
+                    piCell.style.whiteSpace = 'nowrap';
+                    piCell.style.textOverflow = 'ellipsis';
+                    row.appendChild(piCell);
+
+                    // Create and append the station name cell
+                    const stationCell = document.createElement('td');
+                    stationCell.innerText = station.station;
+                    stationCell.style.maxWidth = '200px';
+                    stationCell.style.padding = '0';
+                    stationCell.style.paddingLeft = '10px';
+                    stationCell.style.color = 'white';
+                    stationCell.style.overflow = 'hidden';
+                    stationCell.style.whiteSpace = 'nowrap';
+                    stationCell.style.textOverflow = 'ellipsis';
+                    row.appendChild(stationCell);
+
+                    // Create and append the city and ITU code cell
+                    const cityAllCell = document.createElement('td');
+                    cityAllCell.innerText = `${city} [${itu}]`;
+                    cityAllCell.style.maxWidth = '200px';
+                    cityAllCell.style.padding = '0';
+                    cityAllCell.style.paddingLeft = '15px';
+                    cityAllCell.title = 'open frequency list';
+                    cityAllCell.style.color = 'white';
+                    cityAllCell.style.overflow = 'hidden';
+                    cityAllCell.style.whiteSpace = 'nowrap';
+                    cityAllCell.style.textOverflow = 'ellipsis';
+                    cityAllCell.style.cursor = 'pointer';
+                    row.appendChild(cityAllCell);
+
+                    // Add hover effect for city cell
+                    cityAllCell.addEventListener('mouseover', () => {
+                        cityAllCell.style.textDecoration = 'underline';
+                        cityAllCell.style.color = 'var(--color-5)';
+                    });
+
+                    cityAllCell.addEventListener('mouseout', () => {
+                        cityAllCell.style.textDecoration = 'none';
+                        cityAllCell.style.color = 'white';
+                    });
+
+                    // Add click event to display more stations from the same city
+                    cityAllCell.addEventListener('click', () => {
+                        displayStationData(data, txposLat, txposLon, foundPI);
+                    });
+
+                    // Create and append the distance cell
+                    const distanceCell = document.createElement('td');
+                    distanceCell.innerText = `${Math.round(distanceToCity)} km`;
+                    distanceCell.style.padding = '0';
+                    distanceCell.style.maxWidth = '75px';
+                    distanceCell.style.paddingLeft = '10px';
+                    distanceCell.style.paddingRight = '10px';
+                    distanceCell.style.color = 'white';
+                    distanceCell.style.textAlign = 'right';
+                    distanceCell.style.overflow = 'hidden';
+                    distanceCell.style.whiteSpace = 'nowrap';
+                    distanceCell.style.textOverflow = 'ellipsis';
+                    row.appendChild(distanceCell);
+
+                    // Create and append the ERP cell
+                    const erpCell = document.createElement('td');
+                    erpCell.innerText = `${erp.toFixed(1)} kW`;
+                    erpCell.style.maxWidth = '120px';
+                    erpCell.style.padding = '0';
+                    erpCell.style.paddingLeft = '10px';
+                    erpCell.style.paddingRight = '10px';
+                    erpCell.style.color = 'white';
+                    erpCell.style.textAlign = 'right';
+                    erpCell.style.overflow = 'hidden';
+                    erpCell.style.whiteSpace = 'nowrap';
+                    erpCell.style.textOverflow = 'ellipsis';
+
+                    if (erp < 0.5) {
+                        // ERP less than 0.5 kW, set background color to purple
+                        erpCell.style.backgroundColor = '#7800FF';
+                    } else if (erp >= 0.5 && erp < 5.0) {
+                        // ERP between 0.5 kW and 5.0 kW, set background color to blue
+                        erpCell.style.backgroundColor = '#238BFF';
+                    } else if (erp >= 5.0) {
+                        // ERP greater than or equal to 5.0 kW, set background color to dark blue
+                        erpCell.style.backgroundColor = '#0000FF';
+                    }
+
+                    row.appendChild(erpCell);
+
+                    table.appendChild(row);
+                });
+            };
+        });
+	}
+
+// Function to open (or create) the IndexedDB database
+    function openCacheDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open('apiCacheDB', 1);
+
+            // Create object store if not already present
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('apiCache')) {
+                    db.createObjectStore('apiCache', { keyPath: 'key' });
+                }
+            };
+
+            // Resolve when successfully opened
+            request.onsuccess = (event) => {
+                resolve(event.target.result);
+            };
+
+            // Reject if an error occurs
+            request.onerror = (event) => {
+                reject('IndexedDB error: ' + event.target.errorCode);
+            };
+        });
+    }
+
+    // Function to get cached data from the database
+    function getCachedData(db, key) {
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['apiCache'], 'readonly');
+            const store = transaction.objectStore('apiCache');
+            const request = store.get(key);
+
+            // Resolve if data is found
+            request.onsuccess = (event) => {
+                resolve(event.target.result);
+            };
+
+            // Reject if there is an error retrieving data
+            request.onerror = (event) => {
+                reject('Failed to get cached data');
+            };
+        });
+    }
+
+    // Function to cache data into the IndexedDB database
+    function cacheData(db, key, data) {
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['apiCache'], 'readwrite');
+            const store = transaction.objectStore('apiCache');
+            const request = store.put({ key, data });
+
+            // Resolve when data is successfully cached
+            request.onsuccess = () => {
+                resolve();
+            };
+
+            // Reject if there's an error during caching
+            request.onerror = (event) => {
+                reject('Failed to cache data: ' + event.target.errorCode);
+            };
+        });
+    }
+
+    // Main async function to check PI code and station ID with caching
+    async function checkPicodeAndID(freq, picode, stationid) {
+        const db = await openCacheDB();
+        const cacheKey = `freq:${freq}`;
+
+        // Check if data is already cached
+        const cachedData = await getCachedData(db, cacheKey);
+        if (cachedData) {
+            debugLog('Returning cached data:', cachedData);
+            return searchInLocations(cachedData.data, picode, stationid, freq);  // Search within cached data
+        }
+
+        // If no cache found, fetch data from the API
+        const response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?freq=${freq}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+
+        // Cache the fetched data
+        await cacheData(db, cacheKey, data);
+
+        // Process and return the data
+        return searchInLocations(data, picode, stationid, freq);
+    }
+
+    // Function to search for PI code and station ID within the data
+    function searchInLocations(data, picode, stationid, freq) {
+        foundPI = false;
+        foundID = false;
+        coordinates = null;
+
+        if (typeof data.locations === 'object') {
+            for (const key in data.locations) {
+                const location = data.locations[key];
+                const stations = location.stations;
+
+                if (Array.isArray(stations)) {
+                    for (const station of stations) {
+                        let frequency = station.freq;
+                        let formattedFrequency = frequency.toFixed(3);
+
+                        if (formattedFrequency === freq) {
+                            // Check for matching PI code
+                            if (station.pi === picode) {
+                                foundPI = true;
+                            }
+                            // Check for matching station ID
+                            if (station.id === parseInt(stationid, 10)) {
+                                foundID = true;
+                                coordinates = { lat: location.lat, lon: location.lon };
+                            }
+
+                            // Break the loop if both PI and ID are found
+                            if (foundPI && foundID) break;
+                        }
+                    }
+                }
+
+                // Exit outer loop if a match is found
+                if (foundPI || foundID) break;
+            }
+        }
+
+        debugLog(`Found PI: ${foundPI}, Found ID: ${foundID}, Coordinates: ${JSON.stringify(coordinates)}`);
+        return { foundPI, foundID, coordinates };
+    }
+
+    // Async function to create or update the iframe based on the provided data
     async function openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, radius) {
         if (!LiveMapActive) return;
 
-        let foundPI = false;
-        let foundID = false;
-        let coordinates = null;
-
+        foundPI = false; // Initialize foundPI
+        foundID = false; // Initialize foundID
+        coordinates = null; // Initialize coordinates
+        
         if ((picode !== '?' && picode !== lastPicode) || (stationid && stationid !== lastStationId)) {
             let result = await checkPicodeAndID(freq, picode, stationid);
             foundPI = result.foundPI;
             foundID = result.foundID;
             coordinates = result.coordinates;
+            debugLog(`openOrUpdateIframe - Found PI: ${foundPI}, Found ID: ${foundID}, Coordinates:`, coordinates);
         }
-
+        
         LAT = localStorage.getItem('qthLatitude') || '0';
         LON = localStorage.getItem('qthLongitude') || '0';
 
         const txposSwitch = document.getElementById('txposSwitch');
 
         let txposLat, txposLon;
-			
+        
         if (txposSwitch && txposSwitch.checked) {
             txposLat = localStorage.getItem('txposLat') || '0';
             txposLon = localStorage.getItem('txposLon') || '0';
@@ -843,7 +1100,7 @@ function displayStationData(data, txposLat, txposLon) {
             txposLat = LAT;
             txposLon = LON;
         }
-
+        
         let url;
         if (stationid) {
             url = `https://maps.fmdx.org/#qth=${LAT},${LON}&id=${stationid}&findId=*`;
@@ -857,11 +1114,13 @@ function displayStationData(data, txposLat, txposLon) {
 
         const uniqueUrl = `${url}&t=${new Date().getTime()}`;
 
+        // Function to create and insert the iframe
         function createAndInsertIframe() {
             const newIframe = createIframe();
             const header = createIframeHeader();
             const footer = createIframeFooter();
             const closeButton = createCloseButton();
+            const toggleButton = createToggleButton(); // Create the blue toggle button
             newIframe.src = uniqueUrl;
 
             newIframe.style.opacity = '0';
@@ -881,6 +1140,7 @@ function displayStationData(data, txposLat, txposLon) {
                 iframeContainer.appendChild(header);
                 iframeContainer.appendChild(footer);
                 iframeContainer.appendChild(closeButton);
+                iframeContainer.appendChild(toggleButton); // Append the toggle button to the container
                 iframeContainer.appendChild(newIframe);
                 document.body.appendChild(iframeContainer);
                 addDragFunctionality(iframeContainer);
@@ -902,6 +1162,7 @@ function displayStationData(data, txposLat, txposLon) {
                     }
                 }
 
+                // Remove old iframes
                 const existingIframes = iframeContainer.querySelectorAll('iframe:not(:last-child)');
                 existingIframes.forEach(iframe => {
                     iframe.parentNode.removeChild(iframe);
@@ -919,9 +1180,7 @@ function displayStationData(data, txposLat, txposLon) {
             lastPicode = picode;
             lastStationId = stationid;
             lastFreq = freq;
-
-            await fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid);
-
+            await fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid, foundPI);
             updateToggleSwitch(stationid);
         }
     }
@@ -941,7 +1200,7 @@ function displayStationData(data, txposLat, txposLon) {
             distance = data.txInfo.dist;
             ps = data.ps;
             stationid = data.txInfo.id;
-
+			
             if (freq !== previousFreq) {
                 previousFreq = freq;
                 isFirstUpdateAfterChange = true;
@@ -1052,64 +1311,72 @@ function displayStationData(data, txposLat, txposLon) {
         }
     }
 
-    function initializeLiveMapButton() {
-        const buttonWrapper = document.getElementById('button-wrapper');
-        const LiveMapButton = document.createElement('button');
+function initializeLiveMapButton() {
+    const buttonWrapper = document.getElementById('button-wrapper');
+    const LiveMapButton = document.createElement('button');
 
-        LiveMapButton.id = 'LIVEMAP-on-off';
-        LiveMapButton.classList.add('hide-phone');
-        LiveMapButton.setAttribute('aria-label', 'LIVEMAP');
-        LiveMapButton.setAttribute('data-tooltip', 'LIVEMAP on/off');
-        LiveMapButton.innerHTML = '<strong>LIVEMAP</strong>';
-        LiveMapButton.style.marginTop = '16px';
-        LiveMapButton.style.width = '100px';
-        LiveMapButton.classList.add('bg-color-2');
-        LiveMapButton.style.borderRadius = '0px';
-        LiveMapButton.title = `Plugin Version: ${plugin_version}`;
+    LiveMapButton.id = 'LIVEMAP-on-off';
+    LiveMapButton.classList.add('hide-phone');
+    LiveMapButton.setAttribute('aria-label', 'LIVEMAP');
+    LiveMapButton.setAttribute('data-tooltip', 'LIVEMAP on/off');
+    LiveMapButton.innerHTML = '<strong>LIVEMAP</strong>';
+    LiveMapButton.style.marginTop = '16px';
+    LiveMapButton.style.width = '100px';
+    LiveMapButton.classList.add('bg-color-2');
+    LiveMapButton.style.borderRadius = '0px';
+    LiveMapButton.title = `Plugin Version: ${plugin_version}`;
 
-        LiveMapButton.onclick = () => {
-            LiveMapActive = !LiveMapActive;
-            if (LiveMapActive) {
-                LiveMapButton.classList.remove('bg-color-2');
-                LiveMapButton.classList.add('bg-color-4');
-                debugLog("LIVEMAP activated.");
+    LiveMapButton.onclick = () => {
+        LiveMapActive = !LiveMapActive;
+        if (LiveMapActive) {
+            LiveMapButton.classList.remove('bg-color-2');
+            LiveMapButton.classList.add('bg-color-4');
+            debugLog("LIVEMAP activated.");
 
-                lastPicode = '?';
-                lastFreq = '0.0';
-                lastStationId = null;
+            lastPicode = '?';
+            lastFreq = '0.0';
+            lastStationId = null;
 
-                openOrUpdateIframe(lastPicode, lastFreq, lastStationId);
+            openOrUpdateIframe(lastPicode, lastFreq, lastStationId);
 
-                setTimeout(() => {
-                    if (stationListContainer) {
+            setTimeout(() => {
+                const storedVisibility = localStorage.getItem('stationListVisible');
+
+                if (stationListContainer) {
+                    if (storedVisibility === 'hidden') {
+                        stationListContainer.style.opacity = '0';
+                        stationListContainer.style.visibility = 'hidden';
+                    } else {
                         stationListContainer.style.opacity = '1';
                         stationListContainer.style.visibility = 'visible';
                         stationListContainer.classList.remove('fade-out');
                         stationListContainer.classList.add('fade-in');
                     }
-                }, 300);
-            } else {
-                LiveMapButton.classList.remove('bg-color-4');
-                LiveMapButton.classList.add('bg-color-2');
-                debugLog("LIVEMAP deactivated.");
+                }
+            }, 200);
+        } else {
+            LiveMapButton.classList.remove('bg-color-4');
+            LiveMapButton.classList.add('bg-color-2');
+            debugLog("LIVEMAP deactivated.");
 
-                if (iframeContainer) {
-                    iframeLeft = parseInt(iframeContainer.style.left);
-                    iframeTop = parseInt(iframeContainer.style.top);
-                    iframeWidth = parseInt(iframeContainer.style.width);
-                    iframeHeight = parseInt(iframeContainer.style.height);
+            if (iframeContainer) {
+                iframeLeft = parseInt(iframeContainer.style.left);
+                iframeTop = parseInt(iframeContainer.style.top);
+                iframeWidth = parseInt(iframeContainer.style.width);
+                iframeHeight = parseInt(iframeContainer.style.height);
 
-                    localStorage.setItem('iframeLeft', iframeLeft);
-                    localStorage.setItem('iframeTop', iframeTop);
-                    localStorage.setItem('iframeWidth', iframeWidth);
-                    localStorage.setItem('iframeHeight', iframeHeight);
+                localStorage.setItem('iframeLeft', iframeLeft);
+                localStorage.setItem('iframeTop', iframeTop);
+                localStorage.setItem('iframeWidth', iframeWidth);
+                localStorage.setItem('iframeHeight', iframeHeight);
 
-                    const iframes = document.querySelectorAll('iframe');
-                    iframes.forEach(iframe => {
-                        iframe.style.opacity = '0';
-                        iframe.style.transition = 'opacity 0.5s';
-                    });
+                const iframes = document.querySelectorAll('iframe');
+                iframes.forEach(iframe => {
+                    iframe.style.opacity = '0';
+                    iframe.style.transition = 'opacity 0.5s';
+                });
 
+                if (stationListContainer) {
                     stationListContainer.classList.remove('fade-in');
                     stationListContainer.classList.add('fade-out');
                     stationListContainer.addEventListener('animationend', function handler() {
@@ -1117,43 +1384,45 @@ function displayStationData(data, txposLat, txposLon) {
                         stationListContainer.style.visibility = 'hidden';
                         stationListContainer.removeEventListener('animationend', handler);
                     });
-
-                    iframeContainer.classList.add('fade-out');
-                    iframeContainer.addEventListener('animationend', function handler() {
-                        document.body.removeChild(iframeContainer);
-                        iframeContainer = null;
-                        iframeContainer.removeEventListener('animationend', handler);
-                    });
                 }
-            }
-        };
 
-        if (buttonWrapper) {
-            LiveMapButton.style.marginLeft = '5px';
-            buttonWrapper.appendChild(LiveMapButton);
-            debugLog('LIVEMAP button successfully added to button-wrapper.');
-        } else {
-            console.error('buttonWrapper element not found. Adding LIVEMAP button to default location.');
-            const wrapperElement = document.querySelector('.tuner-info');
-
-            if (wrapperElement) {
-                const buttonWrapper = document.createElement('div');
-                buttonWrapper.classList.add('button-wrapper');
-                buttonWrapper.id = 'button-wrapper';
-                buttonWrapper.appendChild(LiveMapButton);
-                wrapperElement.appendChild(buttonWrapper);
-                const emptyLine = document.createElement('br');
-                wrapperElement.appendChild(emptyLine);
-            } else {
-                console.error('Default location not found. Unable to add LIVEMAP button.');
+                iframeContainer.classList.add('fade-out');
+                iframeContainer.addEventListener('animationend', function handler() {
+                    document.body.removeChild(iframeContainer);
+                    iframeContainer = null;
+                    iframeContainer.removeEventListener('animationend', handler);
+                });
             }
         }
+    };
 
-        LiveMapActive = false;
-        LiveMapButton.classList.remove('bg-color-4');
-        LiveMapButton.classList.add('bg-color-2');
-        debugLog("LIVEMAP deactivated (default status).");
+    if (buttonWrapper) {
+        LiveMapButton.style.marginLeft = '5px';
+        buttonWrapper.appendChild(LiveMapButton);
+        debugLog('LIVEMAP button successfully added to button-wrapper.');
+    } else {
+        console.error('buttonWrapper element not found. Adding LIVEMAP button to default location.');
+        const wrapperElement = document.querySelector('.tuner-info');
+
+        if (wrapperElement) {
+            const buttonWrapper = document.createElement('div');
+            buttonWrapper.classList.add('button-wrapper');
+            buttonWrapper.id = 'button-wrapper';
+            buttonWrapper.appendChild(LiveMapButton);
+            wrapperElement.appendChild(buttonWrapper);
+            const emptyLine = document.createElement('br');
+            wrapperElement.appendChild(emptyLine);
+        } else {
+            console.error('Default location not found. Unable to add LIVEMAP button.');
+        }
     }
+
+    LiveMapActive = false;
+    LiveMapButton.classList.remove('bg-color-4');
+    LiveMapButton.classList.add('bg-color-2');
+    debugLog("LIVEMAP deactivated (default status).");
+}
+
 
     setupWebSocket();
 
@@ -1161,3 +1430,6 @@ function displayStationData(data, txposLat, txposLon) {
         setTimeout(initializeLiveMapButton, 1000);
     });
 })();
+
+
+
