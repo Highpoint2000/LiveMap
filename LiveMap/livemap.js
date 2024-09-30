@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1 BETA)      ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1)           ///
 ///                                                      ///
-///  by Highpoint                last update: 27.09.24   ///
+///  by Highpoint                last update: 30.09.24   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
@@ -25,7 +25,7 @@ let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 70;
 let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
 
 (() => {
-    const plugin_version = 'V2.1 BETA';
+    const plugin_version = 'V2.1';
 	const corsAnywhereUrl = 'https://cors-proxy.highpoint2000.synology.me:5001/';
     let lastPicode = null;
     let lastFreq = null;
@@ -33,7 +33,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
     let websocket;
     let iframeContainer = null;
     let LiveMapActive = false;
-    let picode, freq, itu, city, station, distance, ps, stationid, radius, coordinates, LAT, LON;
+    let picode, freq, itu, city, station, pol, distance, ps, stationid, radius, coordinates, LAT, LON;
     let stationListContainer;
     let foundPI;
     let foundID;
@@ -335,7 +335,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
             localStorage.setItem('selectedRadius', radius); 
             lastFreq = null;
 
-            openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, radius);
+            openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
         }
 
         const radioButtonsHTML = `
@@ -420,7 +420,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
                 localStorage.removeItem('txposLat');
                 localStorage.removeItem('txposLon');
                 debugLog(`LIVEMAP TXPOS deactivated, using default values.`);
-                openOrUpdateIframe('?', '0.0', '', '', '', '', '', '', radius);
+                openOrUpdateIframe('?', '0.0', '', '', '', '', '', '', '',radius);
             }
         });
 
@@ -484,7 +484,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
     }
 
     // Main function with cache mechanism
-    async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid, foundPI) {
+    async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid, pol, foundPI) {
 
         try {
             let response;
@@ -498,7 +498,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
             const cachedData = await getCachedData(db, cacheKey);
             if (cachedData) {
                 debugLog('Returning cached data:', cachedData);
-                displayStationData(cachedData.data, txposLat, txposLon, picode, foundPI);
+                displayStationData(cachedData.data, txposLat, txposLon, picode, pol, foundPI);
                 return;
             }
 
@@ -531,7 +531,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
             await cacheData(db, cacheKey, data);
 
             // Display the station data
-            displayStationData(data, txposLat, txposLon, picode, foundPI);
+            displayStationData(data, txposLat, txposLon, picode, pol, foundPI);
 
         } catch (error) {
             console.error('Error fetching station data:', error);
@@ -555,7 +555,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
         return degrees * (Math.PI / 180);
     }
 
-    async function displayStationData(data, txposLat, txposLon, picode, foundPI) {
+    async function displayStationData(data, txposLat, txposLon, picode, pol, foundPI) {
         if (!data || !data.locations || typeof data.locations !== 'object') {
             console.warn('No valid data received for station display.');
             return;
@@ -597,9 +597,11 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
                 const lon = parseFloat(location.lon);
                 const itu = location.itu || 'N/A';
                 if (!isNaN(lat) && !isNaN(lon)) {
+
                     const stationData = {
                         station,
                         city: location.name,
+						pol: station.pol,
                         lat, 
                         lon,
                         pi: station.pi,
@@ -610,6 +612,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
                     };
                     stationsWithCoordinates.push(stationData);
                     allStations.push(stationData);
+										
                 }
             });
         }
@@ -727,6 +730,16 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
                 cityCell.style.textDecoration = 'none';
                 cityCell.style.color = 'white';
             });
+					
+			const polCell = document.createElement('td');
+            polCell.innerText = `${station.pol.substring(0, 1)}`;
+            polCell.style.maxWidth = '1px';
+            polCell.style.padding = '0';
+            polCell.style.paddingLeft = '10px';
+            polCell.style.paddingRight = '10px';
+            polCell.style.color = 'white';
+            polCell.style.textAlign = 'right';       
+			row.appendChild(polCell);
 
             const erpCell = document.createElement('td');
             erpCell.innerText = `${erp.toFixed(2)} kW`;
@@ -911,6 +924,16 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
                     distanceCell.style.whiteSpace = 'nowrap';
                     distanceCell.style.textOverflow = 'ellipsis';
                     row.appendChild(distanceCell);
+					
+					const polCell = document.createElement('td');
+					polCell.innerText = `${station.pol.substring(0, 1)}`;
+					polCell.style.maxWidth = '1px';
+					polCell.style.padding = '0';
+					polCell.style.paddingLeft = '10px';
+					polCell.style.paddingRight = '10px';
+					polCell.style.color = 'white';
+					polCell.style.textAlign = 'right';
+					row.appendChild(polCell);
 
                     // Create and append the ERP cell
                     const erpCell = document.createElement('td');
@@ -1076,7 +1099,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
     }
 
     // Async function to create or update the iframe based on the provided data
-    async function openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, radius) {
+    async function openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius) {
         if (!LiveMapActive) return;
 
         foundPI = false; // Initialize foundPI
@@ -1184,7 +1207,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
             lastPicode = picode;
             lastStationId = stationid;
             lastFreq = freq;
-            await fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid, foundPI);
+            await fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid, pol, foundPI);
             updateToggleSwitch(stationid);
         }
     }
@@ -1202,9 +1225,10 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
             city = data.txInfo.city;
             station = data.txInfo.tx;
             distance = data.txInfo.dist;
+			pol = data.txInfo.pol;
             ps = data.ps;
             stationid = data.txInfo.id;
-			
+				
             if (freq !== previousFreq) {
                 previousFreq = freq;
                 isFirstUpdateAfterChange = true;
@@ -1214,11 +1238,11 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
                 }
 
                 timeoutId = setTimeout(() => {
-                    openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, radius);
+                    openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
                     isFirstUpdateAfterChange = false;
                 }, 1000);
             } else if (!isFirstUpdateAfterChange) {
-                openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, radius);
+                openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
             }
         } catch (error) {
             console.error("Error processing the message:", error);
