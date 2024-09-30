@@ -724,7 +724,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
             });
 
             const erpCell = document.createElement('td');
-            erpCell.innerText = `${erp.toFixed(1)} kW`;
+            erpCell.innerText = `${erp.toFixed(2)} kW`;
             erpCell.style.maxWidth = '120px';
             erpCell.style.padding = '0';
             erpCell.style.paddingLeft = '10px';
@@ -909,7 +909,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
 
                     // Create and append the ERP cell
                     const erpCell = document.createElement('td');
-                    erpCell.innerText = `${erp.toFixed(1)} kW`;
+                    erpCell.innerText = `${erp.toFixed(2)} kW`;
                     erpCell.style.maxWidth = '120px';
                     erpCell.style.padding = '0';
                     erpCell.style.paddingLeft = '10px';
