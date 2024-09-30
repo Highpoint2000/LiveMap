@@ -314,7 +314,8 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
     }
 
     // Create the iframe footer with radius options and a toggle switch for TXPOS
-    function createIframeFooter() {
+    function createIframeFooter(coordinates) {
+
         const footer = document.createElement('div');
         footer.classList.add('bg-color-2');
         footer.style.color = 'white';
@@ -395,9 +396,9 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
         toggleSwitchContainer.appendChild(toggleSwitch);
         toggleSwitchContainer.appendChild(toggleSwitchLabel);
         footer.appendChild(toggleSwitchContainer);
-
         toggleSwitch.classList.add('disabled'); 
 
+        const { lat, lon } = coordinates;
         input.addEventListener('change', async function() {
             if (this.checked) {
                 if (!stationid) {
@@ -406,7 +407,6 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
                     return;
                 }
 
-                const { lat, lon } = coordinates || { lat: '0', lon: '0' };
                 localStorage.setItem('txposLat', lat);
                 localStorage.setItem('txposLon', lon);
                 debugLog(`LIVEMAP TXPOS activated: LAT = ${lat}, LON = ${lon}`);
@@ -1032,7 +1032,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
     function searchInLocations(data, picode, stationid, freq) {
         foundPI = false;
         foundID = false;
-        coordinates = null;
+
 
         if (typeof data.locations === 'object') {
             for (const key in data.locations) {
@@ -1076,7 +1076,6 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
 
         foundPI = false; // Initialize foundPI
         foundID = false; // Initialize foundID
-        coordinates = null; // Initialize coordinates
         
         if ((picode !== '?' && picode !== lastPicode) || (stationid && stationid !== lastStationId)) {
             let result = await checkPicodeAndID(freq, picode, stationid);
@@ -1118,7 +1117,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
         function createAndInsertIframe() {
             const newIframe = createIframe();
             const header = createIframeHeader();
-            const footer = createIframeFooter();
+            const footer = createIframeFooter(coordinates);
             const closeButton = createCloseButton();
             const toggleButton = createToggleButton(); // Create the blue toggle button
             newIframe.src = uniqueUrl;
