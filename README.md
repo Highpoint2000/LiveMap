@@ -6,12 +6,14 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 
 
 
-## v2.1 BETA
+## v2.1
 
 - Design adjustments
+- Added polarization to the frequency table
+- link to the livestream player
 - Frequency list can be hidden (red square)
 - Clicking on the city displays all stations in the location
-- Frequency list with direct selection of the frequency for the FM-DX web server and direct link to the livestream
+- direct selection of the frequency for the FM-DX web server
 
 ## Installation notes:
 
