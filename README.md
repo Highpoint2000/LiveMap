@@ -27,9 +27,12 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 ## Important notes: 
 
 - In order to display the position correctly, your own coordinates must be entered in the web server!
-- A first display occurs as soon as a first PI code has been detected. The display is further specified when a station ID is received and updated dynamically when changes occur.
-- The position of the pop-up window can be changed by pressing the border and moving the window. By pressing and dragging the blue triangle in the lower right corner, the size of the window can be adjusted.
-
+- An initial display occurs as soon as a first PI code has been recognized. The display is further specified upon receipt of a station ID and updated dynamically as changes occur.
+- The position of the pop-up window can be changed by pressing the edge and moving the window. You can resize the window by pressing and dragging the blue square in the bottom right corner.
+- The frequency table can be shown and hidden using the red square.
+- Clicking on the green player symbol opens the link to the live stream (FMSCAN login required).
+- Clicking on the location shows all programs at the location, clicking again returns. The frequency displayed in the location list can be clicked directly.
+  
 ## History:
 
 ### v2.0
