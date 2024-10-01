@@ -1,15 +1,17 @@
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1)           ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1a)           ///
 ///                                                      ///
-///  by Highpoint                last update: 30.09.24   ///
+///  by Highpoint                last update: 01.10.24   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
 ////////////////////////////////////////////////////////////
 
-// Define ConsoleDebug variable
-let ConsoleDebug = false;
+let ConsoleDebug = false; // Define ConsoleDebug variable
+let MoveToRight = '0px'; // Determine how many pixels the web server is shifted to the right at night (default: 0px)
+
+////////////////////////////////////////////////////////////
 
 // Custom console log function
 function debugLog(...messages) {
@@ -25,7 +27,7 @@ let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 70;
 let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
 
 (() => {
-    const plugin_version = 'V2.1';
+    const plugin_version = 'V2.1a';
 	const corsAnywhereUrl = 'https://cors-proxy.highpoint2000.synology.me:5001/';
     let lastPicode = null;
     let lastFreq = null;
@@ -43,6 +45,25 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
     // Add custom CSS styles
     const style = document.createElement('style');
     style.innerHTML = `
+	
+body {
+    margin: 0; /* Entferne Standard-Margin */
+}
+
+.background-strip {
+    position: fixed; /* Fixiert den Streifen, damit er nicht mit scrollt */
+    left: 0; /* Positioniere den Streifen an der linken Seite */
+    top: 0; /* Setze den Streifen an den oberen Rand */
+    width: 100%; /* Breite des Streifens */
+    height: 100%; /* Höhe des Streifens */
+}
+
+#wrapper {
+    position: relative; /* Position für den Wrapper */
+    margin-left: 0px; /* Verschiebe den Wrapper um 200px nach rechts */
+    padding: 20px; /* Optional: Füge Padding hinzu, um den Inhalt vom Rand abzusetzen */
+}
+
     .fade-out {
         animation: fadeOut 0.5s forwards;
     }
@@ -146,7 +167,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
     }
     `;
     document.head.appendChild(style);
-
+	
     // Function to create the toggle button
     function createToggleButton() {
         const toggleButton = document.createElement('div');
@@ -572,7 +593,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
             stationListContainer.style.padding = '15px';
             stationListContainer.style.borderRadius = '0px 0px 15px 15px';
             stationListContainer.style.zIndex = '1000';
-            stationListContainer.style.maxHeight = '190px';
+            stationListContainer.style.maxHeight = '182px';
             stationListContainer.style.overflowY = 'scroll';
             stationListContainer.style.visibility = 'visible'; 
             document.body.appendChild(stationListContainer);
@@ -640,7 +661,9 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
         table.style.fontSize = '13px';
         table.classList.add('bg-color-2');
         table.style.borderRadius = '15px';
-        table.style.margin = '0 auto';
+        // table.style.margin = '0 auto';
+		table.style.marginBottom = '0px';
+		table.style.marginTop = '0px';
         table.style.textAlign = 'left';
 
         filteredStations.forEach(({ station, city, lat, lon, pi, erp, id, itu }) => {
@@ -668,17 +691,18 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
             streamLink.title = 'play livestream';
             streamCell.appendChild(streamLink);
             streamCell.style.paddingLeft = '10px';
-            streamCell.style.paddingRight = '18px';
+            streamCell.style.paddingRight = '10px';
+			streamCell.style.width = '5px';
+			streamCell.style.maxWidth = '5px';
             streamCell.style.textAlign = 'left';
-            streamCell.style.overflow = 'hidden';
-            streamCell.style.whiteSpace = 'nowrap';
-            streamCell.style.textOverflow = 'ellipsis';
             row.appendChild(streamCell);
 
             const freqCell = document.createElement('td');
             freqCell.innerText = `${station.freq.toFixed(1)} MHz`;
-            freqCell.style.maxWidth = '90px';
-            freqCell.style.padding = '0';
+            freqCell.style.maxWidth = '100px';
+			freqCell.style.width = '100px';
+            freqCell.style.paddingLeft = '5px';
+			freqCell.style.paddingRight = '25px';
             freqCell.style.color = 'white';
             freqCell.style.textAlign = 'right';
             freqCell.style.overflow = 'hidden';
@@ -688,10 +712,12 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
 
             const piCell = document.createElement('td');
             piCell.innerText = pi;
-            piCell.style.maxWidth = '50px';
-            piCell.style.padding = '0';
-            piCell.style.paddingLeft = '15px';
+            piCell.style.maxWidth = '70px';
+			piCell.style.width = '70px';
+            piCell.style.paddingLeft = '5px';
+			piCell.style.paddingRight = '25px';
             piCell.style.color = 'white';
+			piCell.style.textAlign = 'right';
             piCell.style.overflow = 'hidden';
             piCell.style.whiteSpace = 'nowrap';
             piCell.style.textOverflow = 'ellipsis';
@@ -699,10 +725,12 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
 
             const stationCell = document.createElement('td');
             stationCell.innerText = station.station;
-            stationCell.style.maxWidth = '200px';
-            stationCell.style.padding = '0';
-            stationCell.style.paddingLeft = '10px';
+            stationCell.style.maxWidth = '160px';
+			stationCell.style.width = '160px';
+            stationCell.style.paddingLeft = '5px';
+            stationCell.style.paddingRight = '5px';
             stationCell.style.color = 'white';
+			stationCell.style.textAlign = 'left';
             stationCell.style.overflow = 'hidden';
             stationCell.style.whiteSpace = 'nowrap';
             stationCell.style.textOverflow = 'ellipsis';
@@ -710,11 +738,13 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
 
             const cityCell = document.createElement('td');
             cityCell.innerText = `${city} [${itu}]`;
-            cityCell.style.maxWidth = '200px';
-            cityCell.style.padding = '0';
-            cityCell.style.paddingLeft = '15px';
+            cityCell.style.maxWidth = '160px';
+			cityCell.style.width = '160px';
+            cityCell.style.paddingLeft = '5px';
+			cityCell.style.paddingRight = '5px';
             cityCell.title = 'open location list';
             cityCell.style.color = 'white';
+			cityCell.style.textAlign = 'left';
             cityCell.style.overflow = 'hidden';
             cityCell.style.whiteSpace = 'nowrap';
             cityCell.style.textOverflow = 'ellipsis';
@@ -734,19 +764,19 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
 			const polCell = document.createElement('td');
             polCell.innerText = `${station.pol.substring(0, 1)}`;
             polCell.style.maxWidth = '1px';
-            polCell.style.padding = '0';
-            polCell.style.paddingLeft = '10px';
-            polCell.style.paddingRight = '10px';
+			polCell.style.width = '1px';
+            polCell.style.paddingLeft = '5px';
+            polCell.style.paddingRight = '15px';
             polCell.style.color = 'white';
             polCell.style.textAlign = 'right';       
 			row.appendChild(polCell);
 
             const erpCell = document.createElement('td');
             erpCell.innerText = `${erp.toFixed(2)} kW`;
-            erpCell.style.maxWidth = '120px';
-            erpCell.style.padding = '0';
-            erpCell.style.paddingLeft = '10px';
-            erpCell.style.paddingRight = '10px';
+            erpCell.style.maxWidth = '100px';
+			erpCell.style.width = '100px';
+            erpCell.style.paddingLeft = '5px';
+            erpCell.style.paddingRight = '5px';
             erpCell.style.color = 'white';
             erpCell.style.textAlign = 'right';
             erpCell.style.overflow = 'hidden';
@@ -769,6 +799,14 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
             
             // Append the row to the table
             table.appendChild(row);
+			
+			const emptyRow = document.createElement('tr');
+			const emptyCell = document.createElement('td');
+			emptyCell.colSpan = 7; // Anzahl der Spalten anpassen
+			emptyCell.style.height = '2px'; // Höhe der Leerzeile
+			emptyRow.appendChild(emptyCell);
+			table.appendChild(emptyRow);
+			
         });
 
         // Add the table with stations to the station list container
@@ -813,33 +851,31 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
                     playIcon.style.color = 'green';
                     playIcon.style.cursor = 'pointer';
 
-                    streamLink.appendChild(playIcon);
-                    streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
-                    streamLink.style.color = 'green';
-                    streamLink.style.textDecoration = 'none';
-                    streamLink.title = 'play livestream';
-                    streamCell.appendChild(streamLink);
-                    streamCell.style.paddingLeft = '10px';
-                    streamCell.style.paddingRight = '0px';
-                    streamCell.style.textAlign = 'left';
-                    streamCell.style.overflow = 'hidden';
-                    streamCell.style.whiteSpace = 'nowrap';
-                    streamCell.style.textOverflow = 'ellipsis';
-                    row.appendChild(streamCell);
+            streamLink.appendChild(playIcon);
+            streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
+            streamLink.style.color = 'green';
+            streamLink.style.textDecoration = 'none';
+            streamLink.title = 'play livestream';
+            streamCell.appendChild(streamLink);
+            streamCell.style.paddingLeft = '10px';
+            streamCell.style.paddingRight = '10px';
+			streamCell.style.width = '5px';
+			streamCell.style.maxWidth = '5px';
+            streamCell.style.textAlign = 'left';
+            row.appendChild(streamCell);
 
-                    // Create and append a cell for the frequency
-                    const freqCellStation = document.createElement('td');
-                    freqCellStation.innerText = `${station.freq.toFixed(1)} MHz`;
-                    freqCellStation.style.maxWidth = '90px';
-                    freqCellStation.style.padding = '0';
-                    freqCellStation.style.color = 'white';
-                    freqCellStation.style.textAlign = 'right';
-                    freqCellStation.style.cursor = 'pointer';
-                    freqCellStation.style.overflow = 'hidden';
-                    freqCellStation.style.whiteSpace = 'nowrap';
-                    freqCellStation.style.textOverflow = 'ellipsis';
-                    row.appendChild(freqCellStation);
-
+            const freqCellStation = document.createElement('td');
+            freqCellStation.innerText = `${station.freq.toFixed(1)} MHz`;
+            freqCellStation.style.maxWidth = '100px';
+			freqCellStation.style.width = '100px';
+            freqCellStation.style.paddingLeft = '5px';
+			freqCellStation.style.paddingRight = '25px';
+            freqCellStation.style.color = 'white';
+            freqCellStation.style.textAlign = 'right';
+            freqCellStation.style.overflow = 'hidden';
+            freqCellStation.style.whiteSpace = 'nowrap';
+            freqCellStation.style.textOverflow = 'ellipsis';
+            row.appendChild(freqCellStation);
                     // Add hover effect and click event for sending frequency data over WebSocket
                     freqCellStation.addEventListener('mouseover', () => {
                         freqCellStation.style.textDecoration = 'underline';
@@ -857,38 +893,42 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
                         debugLog("WebSocket sending:", dataToSend);
                     };
 
-                    // Create and append the PI code cell
-                    const piCell = document.createElement('td');
-                    piCell.innerText = pi;
-                    piCell.style.maxWidth = '50px';
-                    piCell.style.padding = '0';
-                    piCell.style.paddingLeft = '15px';
-                    piCell.style.color = 'white';
-                    piCell.style.overflow = 'hidden';
-                    piCell.style.whiteSpace = 'nowrap';
-                    piCell.style.textOverflow = 'ellipsis';
-                    row.appendChild(piCell);
+            const piCell = document.createElement('td');
+            piCell.innerText = pi;
+            piCell.style.maxWidth = '70px';
+			piCell.style.width = '70px';
+            piCell.style.paddingLeft = '5px';
+			piCell.style.paddingRight = '25px';
+            piCell.style.color = 'white';
+			piCell.style.textAlign = 'right';
+            piCell.style.overflow = 'hidden';
+            piCell.style.whiteSpace = 'nowrap';
+            piCell.style.textOverflow = 'ellipsis';
+            row.appendChild(piCell);
 
-                    // Create and append the station name cell
-                    const stationCell = document.createElement('td');
-                    stationCell.innerText = station.station;
-                    stationCell.style.maxWidth = '200px';
-                    stationCell.style.padding = '0';
-                    stationCell.style.paddingLeft = '10px';
-                    stationCell.style.color = 'white';
-                    stationCell.style.overflow = 'hidden';
-                    stationCell.style.whiteSpace = 'nowrap';
-                    stationCell.style.textOverflow = 'ellipsis';
-                    row.appendChild(stationCell);
+            const stationCell = document.createElement('td');
+            stationCell.innerText = station.station;
+            stationCell.style.maxWidth = '160px';
+			stationCell.style.width = '160px';
+            stationCell.style.paddingLeft = '5px';
+            stationCell.style.paddingRight = '5px';
+            stationCell.style.color = 'white';
+			stationCell.style.textAlign = 'left';
+            stationCell.style.overflow = 'hidden';
+            stationCell.style.whiteSpace = 'nowrap';
+            stationCell.style.textOverflow = 'ellipsis';
+            row.appendChild(stationCell);
 
                     // Create and append the city and ITU code cell
                     const cityAllCell = document.createElement('td');
                     cityAllCell.innerText = `${city} [${itu}]`;
-                    cityAllCell.style.maxWidth = '200px';
-                    cityAllCell.style.padding = '0';
-                    cityAllCell.style.paddingLeft = '15px';
+                    cityAllCell.style.maxWidth = '160px';
+					cityAllCell.style.width = '160px';
+                    cityAllCell.style.paddingRight = '5px';
+                    cityAllCell.style.paddingLeft = '5px';
                     cityAllCell.title = 'open frequency list';
                     cityAllCell.style.color = 'white';
+					cityAllCell.style.textAlign = 'left';
                     cityAllCell.style.overflow = 'hidden';
                     cityAllCell.style.whiteSpace = 'nowrap';
                     cityAllCell.style.textOverflow = 'ellipsis';
@@ -925,28 +965,28 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
                     distanceCell.style.textOverflow = 'ellipsis';
                     row.appendChild(distanceCell);
 					
-					const polCell = document.createElement('td');
-					polCell.innerText = `${station.pol.substring(0, 1)}`;
-					polCell.style.maxWidth = '1px';
-					polCell.style.padding = '0';
-					polCell.style.paddingLeft = '10px';
-					polCell.style.paddingRight = '10px';
-					polCell.style.color = 'white';
-					polCell.style.textAlign = 'right';
-					row.appendChild(polCell);
+			const polCell = document.createElement('td');
+            polCell.innerText = `${station.pol.substring(0, 1)}`;
+            polCell.style.maxWidth = '1px';
+			polCell.style.width = '1px';
+            polCell.style.paddingLeft = '5px';
+            polCell.style.paddingRight = '15px';
+            polCell.style.color = 'white';
+            polCell.style.textAlign = 'right';       
+			row.appendChild(polCell);
 
                     // Create and append the ERP cell
-                    const erpCell = document.createElement('td');
-                    erpCell.innerText = `${erp.toFixed(2)} kW`;
-                    erpCell.style.maxWidth = '120px';
-                    erpCell.style.padding = '0';
-                    erpCell.style.paddingLeft = '10px';
-                    erpCell.style.paddingRight = '10px';
-                    erpCell.style.color = 'white';
-                    erpCell.style.textAlign = 'right';
-                    erpCell.style.overflow = 'hidden';
-                    erpCell.style.whiteSpace = 'nowrap';
-                    erpCell.style.textOverflow = 'ellipsis';
+            const erpCell = document.createElement('td');
+            erpCell.innerText = `${erp.toFixed(2)} kW`;
+            erpCell.style.maxWidth = '100px';
+			erpCell.style.width = '100px';
+            erpCell.style.paddingLeft = '5px';
+            erpCell.style.paddingRight = '5px';
+            erpCell.style.color = 'white';
+            erpCell.style.textAlign = 'right';
+            erpCell.style.overflow = 'hidden';
+            erpCell.style.whiteSpace = 'nowrap';
+            erpCell.style.textOverflow = 'ellipsis';
 
                     if (erp < 0.5) {
                         // ERP less than 0.5 kW, set background color to purple
@@ -962,6 +1002,15 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
                     row.appendChild(erpCell);
 
                     table.appendChild(row);
+					
+					emptyRow = document.createElement('tr');
+					emptyCell = document.createElement('td');
+					
+					emptyCell.colSpan = 7; // Anzahl der Spalten anpassen
+					emptyCell.style.height = '2px'; // Höhe der Leerzeile
+					emptyRow.appendChild(emptyCell);
+					table.appendChild(emptyRow);
+					
                 });
             };
         });
@@ -1356,6 +1405,8 @@ function initializeLiveMapButton() {
 
     LiveMapButton.onclick = () => {
         LiveMapActive = !LiveMapActive;
+        const wrapper = document.getElementById('wrapper'); // Get the wrapper here for easy access
+
         if (LiveMapActive) {
             LiveMapButton.classList.remove('bg-color-2');
             LiveMapButton.classList.add('bg-color-4');
@@ -1366,6 +1417,9 @@ function initializeLiveMapButton() {
             lastStationId = null;
 
             openOrUpdateIframe(lastPicode, lastFreq, lastStationId);
+
+            // Move the wrapper right when LIVEMAP is activated
+            moveWrapperRight();
 
             setTimeout(() => {
                 const storedVisibility = localStorage.getItem('stationListVisible');
@@ -1421,6 +1475,9 @@ function initializeLiveMapButton() {
                     iframeContainer.removeEventListener('animationend', handler);
                 });
             }
+
+            // Reset the wrapper position to 0 when LIVEMAP is deactivated
+            wrapper.style.left = '0';
         }
     };
 
@@ -1449,14 +1506,38 @@ function initializeLiveMapButton() {
     LiveMapButton.classList.remove('bg-color-4');
     LiveMapButton.classList.add('bg-color-2');
     debugLog("LIVEMAP deactivated (default status).");
+
+    // Move the wrapper based on the initial state of LiveMapActive
+    const wrapper = document.getElementById('wrapper');
+    if (LiveMapActive) {
+        moveWrapperRight(); // Move the wrapper if LIVEMAP is active
+    } else {
+        wrapper.style.left = '0'; // Reset wrapper position if LIVEMAP is inactive
+    }
 }
 
+function moveWrapperRight() {
+    const wrapper = document.getElementById('wrapper');
+    wrapper.style.left = MoveToRight; // Use the value from the MoveToRight variable
+}
+
+// Ensure the wrapper position is set correctly on window load
+window.onload = function() {
+    const wrapper = document.getElementById('wrapper');
+    
+    if (LiveMapActive) {
+        moveWrapperRight(); // Move the wrapper if LIVEMAP is active
+    } else {
+        wrapper.style.left = '0'; // Reset the wrapper to 0 if LIVEMAP is inactive
+    }
+};
 
     setupWebSocket();
 
     document.addEventListener('DOMContentLoaded', function() {
         setTimeout(initializeLiveMapButton, 1000);
-    });
+    });	
+	
 })();
 
 
