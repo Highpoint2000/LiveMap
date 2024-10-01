@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1a)           ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1b)          ///
 ///                                                      ///
 ///  by Highpoint                last update: 01.10.24   ///
 ///                                                      ///
@@ -9,14 +9,13 @@
 ////////////////////////////////////////////////////////////
 
 let ConsoleDebug = false; // Define ConsoleDebug variable
-let MoveToRight = '0px'; // Determine how many pixels the web server is shifted to the right at night (default: 0px)
 
 ////////////////////////////////////////////////////////////
 
 // Custom console log function
 function debugLog(...messages) {
     if (ConsoleDebug) {
-        debugLog(...messages);
+        console.log(...messages);
     }
 }
 
@@ -27,7 +26,7 @@ let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 70;
 let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
 
 (() => {
-    const plugin_version = 'V2.1a';
+    const plugin_version = 'V2.1b';
 	const corsAnywhereUrl = 'https://cors-proxy.highpoint2000.synology.me:5001/';
     let lastPicode = null;
     let lastFreq = null;
@@ -47,21 +46,11 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
     style.innerHTML = `
 	
 body {
-    margin: 0; /* Entferne Standard-Margin */
-}
-
-.background-strip {
-    position: fixed; /* Fixiert den Streifen, damit er nicht mit scrollt */
-    left: 0; /* Positioniere den Streifen an der linken Seite */
-    top: 0; /* Setze den Streifen an den oberen Rand */
-    width: 100%; /* Breite des Streifens */
-    height: 100%; /* Höhe des Streifens */
+    margin: 0; /* Remove default margin */
 }
 
 #wrapper {
-    position: relative; /* Position für den Wrapper */
-    margin-left: 0px; /* Verschiebe den Wrapper um 200px nach rechts */
-    padding: 20px; /* Optional: Füge Padding hinzu, um den Inhalt vom Rand abzusetzen */
+    position: relative; /* Position for the wrapper */
 }
 
     .fade-out {
@@ -167,6 +156,80 @@ body {
     }
     `;
     document.head.appendChild(style);
+	
+	
+	// Function to add drag-and-drop functionality
+	function addDragFunctionalityToWrapper() {
+		const wrapper = document.getElementById('wrapper');
+		const LiveMapButton = document.getElementById('LIVEMAP-on-off');
+
+		if (!wrapper || !LiveMapButton) {
+			console.error('Wrapper or LiveMapButton not found.');
+			return;
+		}
+
+		let startX = 0; // Start position of the mouse
+		let wrapperStartLeft = 0; // Starting position of the wrapper
+
+		LiveMapButton.onmousedown = function (e) {
+			e.preventDefault(); // Prevent default action
+
+			// Store the initial position of the mouse
+			startX = e.clientX;
+
+			// Save the current position of the wrapper relative to the viewport
+			wrapperStartLeft = parseInt(window.getComputedStyle(wrapper).left, 10) || 0;
+
+			// Set mouse move and mouse up events
+			document.onmousemove = onMouseMove;
+			document.onmouseup = onMouseUp;
+		};
+
+		function onMouseMove(e) {
+			// Calculate the displacement of the mouse relative to the start position
+			const deltaX = e.clientX - startX;
+
+			// Calculate the new position of the wrapper
+			let newLeft = wrapperStartLeft + deltaX;
+
+			// Screen boundaries
+			const minLeft = 0; // Left boundary
+			const maxLeft = window.innerWidth - wrapper.offsetWidth; // Right boundary
+
+			// Set the new position of the wrapper within the boundaries
+			wrapper.style.left = Math.max(minLeft, Math.min(newLeft, maxLeft)) + 'px';
+		}
+
+		function onMouseUp() {
+			// Save the horizontal position in localStorage
+			localStorage.setItem('wrapperLeft', wrapper.style.left);
+
+			// Remove event listeners
+			document.onmousemove = null;
+			document.onmouseup = null;
+		}
+	}
+
+	// Initialize the position of the wrapper when the page loads
+	function initializeWrapperPosition() {
+		const wrapper = document.getElementById('wrapper');
+		const storedLeft = localStorage.getItem('wrapperLeft');
+
+		if (storedLeft) {
+			wrapper.style.left = storedLeft; // Set the saved horizontal position
+		} else {
+			wrapper.style.left = '0px'; // Set a default position if nothing is saved
+		}
+	}
+
+	initializeWrapperPosition();
+
+	// Call the initialization and drag functionality setup
+	document.addEventListener('DOMContentLoaded', () => {
+		setTimeout(() => {
+			addDragFunctionalityToWrapper();
+		}, 1500); // Wait 1500 ms before calling the functions
+	});
 	
     // Function to create the toggle button
     function createToggleButton() {
@@ -1403,83 +1466,94 @@ function initializeLiveMapButton() {
     LiveMapButton.style.borderRadius = '0px';
     LiveMapButton.title = `Plugin Version: ${plugin_version}`;
 
-    LiveMapButton.onclick = () => {
-        LiveMapActive = !LiveMapActive;
-        const wrapper = document.getElementById('wrapper'); // Get the wrapper here for easy access
+    let isLongPress = false;
+    let clickTimeout;
 
-        if (LiveMapActive) {
-            LiveMapButton.classList.remove('bg-color-2');
-            LiveMapButton.classList.add('bg-color-4');
-            debugLog("LIVEMAP activated.");
+    LiveMapButton.addEventListener('mousedown', (event) => {
+        isLongPress = false; // Reset long press state
+        clickTimeout = setTimeout(() => {
+            isLongPress = true; // Mark as long press
+        }, 300); // 300 ms threshold for long press
+    });
 
-            lastPicode = '?';
-            lastFreq = '0.0';
-            lastStationId = null;
+    LiveMapButton.addEventListener('mouseup', (event) => {
+        clearTimeout(clickTimeout); // Clear timeout on mouseup
 
-            openOrUpdateIframe(lastPicode, lastFreq, lastStationId);
+        // Only toggle if it was a short click
+        if (!isLongPress) {
+            LiveMapActive = !LiveMapActive;
+            if (LiveMapActive) {
+                LiveMapButton.classList.remove('bg-color-2');
+                LiveMapButton.classList.add('bg-color-4');
+                debugLog("LIVEMAP activated.");
 
-            // Move the wrapper right when LIVEMAP is activated
-            moveWrapperRight();
+                lastPicode = '?';
+                lastFreq = '0.0';
+                lastStationId = null;
 
-            setTimeout(() => {
-                const storedVisibility = localStorage.getItem('stationListVisible');
+                openOrUpdateIframe(lastPicode, lastFreq, lastStationId);
 
-                if (stationListContainer) {
-                    if (storedVisibility === 'hidden') {
-                        stationListContainer.style.opacity = '0';
-                        stationListContainer.style.visibility = 'hidden';
-                    } else {
-                        stationListContainer.style.opacity = '1';
-                        stationListContainer.style.visibility = 'visible';
-                        stationListContainer.classList.remove('fade-out');
-                        stationListContainer.classList.add('fade-in');
+                setTimeout(() => {
+                    const storedVisibility = localStorage.getItem('stationListVisible');
+
+                    if (stationListContainer) {
+                        if (storedVisibility === 'hidden') {
+                            stationListContainer.style.opacity = '0';
+                            stationListContainer.style.visibility = 'hidden';
+                        } else {
+                            stationListContainer.style.opacity = '1';
+                            stationListContainer.style.visibility = 'visible';
+                            stationListContainer.classList.remove('fade-out');
+                            stationListContainer.classList.add('fade-in');
+                        }
                     }
-                }
-            }, 200);
-        } else {
-            LiveMapButton.classList.remove('bg-color-4');
-            LiveMapButton.classList.add('bg-color-2');
-            debugLog("LIVEMAP deactivated.");
+                }, 200);
+            } else {
+                LiveMapButton.classList.remove('bg-color-4');
+                LiveMapButton.classList.add('bg-color-2');
+                debugLog("LIVEMAP deactivated.");
 
-            if (iframeContainer) {
-                iframeLeft = parseInt(iframeContainer.style.left);
-                iframeTop = parseInt(iframeContainer.style.top);
-                iframeWidth = parseInt(iframeContainer.style.width);
-                iframeHeight = parseInt(iframeContainer.style.height);
+                if (iframeContainer) {
+                    iframeLeft = parseInt(iframeContainer.style.left);
+                    iframeTop = parseInt(iframeContainer.style.top);
+                    iframeWidth = parseInt(iframeContainer.style.width);
+                    iframeHeight = parseInt(iframeContainer.style.height);
 
-                localStorage.setItem('iframeLeft', iframeLeft);
-                localStorage.setItem('iframeTop', iframeTop);
-                localStorage.setItem('iframeWidth', iframeWidth);
-                localStorage.setItem('iframeHeight', iframeHeight);
+                    localStorage.setItem('iframeLeft', iframeLeft);
+                    localStorage.setItem('iframeTop', iframeTop);
+                    localStorage.setItem('iframeWidth', iframeWidth);
+                    localStorage.setItem('iframeHeight', iframeHeight);
 
-                const iframes = document.querySelectorAll('iframe');
-                iframes.forEach(iframe => {
-                    iframe.style.opacity = '0';
-                    iframe.style.transition = 'opacity 0.5s';
-                });
+                    const iframes = document.querySelectorAll('iframe');
+                    iframes.forEach(iframe => {
+                        iframe.style.opacity = '0';
+                        iframe.style.transition = 'opacity 0.5s';
+                    });
 
-                if (stationListContainer) {
-                    stationListContainer.classList.remove('fade-in');
-                    stationListContainer.classList.add('fade-out');
-                    stationListContainer.addEventListener('animationend', function handler() {
-                        stationListContainer.style.opacity = '0';
-                        stationListContainer.style.visibility = 'hidden';
-                        stationListContainer.removeEventListener('animationend', handler);
+                    if (stationListContainer) {
+                        stationListContainer.classList.remove('fade-in');
+                        stationListContainer.classList.add('fade-out');
+                        stationListContainer.addEventListener('animationend', function handler() {
+                            stationListContainer.style.opacity = '0';
+                            stationListContainer.style.visibility = 'hidden';
+                            stationListContainer.removeEventListener('animationend', handler);
+                        });
+                    }
+
+                    iframeContainer.classList.add('fade-out');
+                    iframeContainer.addEventListener('animationend', function handler() {
+                        document.body.removeChild(iframeContainer);
+                        iframeContainer = null;
+                        iframeContainer.removeEventListener('animationend', handler);
                     });
                 }
-
-                iframeContainer.classList.add('fade-out');
-                iframeContainer.addEventListener('animationend', function handler() {
-                    document.body.removeChild(iframeContainer);
-                    iframeContainer = null;
-                    iframeContainer.removeEventListener('animationend', handler);
-                });
             }
-
-            // Reset the wrapper position to 0 when LIVEMAP is deactivated
-            wrapper.style.left = '0';
         }
-    };
+    });
+
+    LiveMapButton.addEventListener('mouseleave', () => {
+        clearTimeout(clickTimeout); // Clear timeout if the mouse leaves the button
+    });
 
     if (buttonWrapper) {
         LiveMapButton.style.marginLeft = '5px';
@@ -1506,37 +1580,13 @@ function initializeLiveMapButton() {
     LiveMapButton.classList.remove('bg-color-4');
     LiveMapButton.classList.add('bg-color-2');
     debugLog("LIVEMAP deactivated (default status).");
-
-    // Move the wrapper based on the initial state of LiveMapActive
-    const wrapper = document.getElementById('wrapper');
-    if (LiveMapActive) {
-        moveWrapperRight(); // Move the wrapper if LIVEMAP is active
-    } else {
-        wrapper.style.left = '0'; // Reset wrapper position if LIVEMAP is inactive
-    }
 }
-
-function moveWrapperRight() {
-    const wrapper = document.getElementById('wrapper');
-    wrapper.style.left = MoveToRight; // Use the value from the MoveToRight variable
-}
-
-// Ensure the wrapper position is set correctly on window load
-window.onload = function() {
-    const wrapper = document.getElementById('wrapper');
-    
-    if (LiveMapActive) {
-        moveWrapperRight(); // Move the wrapper if LIVEMAP is active
-    } else {
-        wrapper.style.left = '0'; // Reset the wrapper to 0 if LIVEMAP is inactive
-    }
-};
 
     setupWebSocket();
 
     document.addEventListener('DOMContentLoaded', function() {
         setTimeout(initializeLiveMapButton, 1000);
-    });	
+    });
 	
 })();
 
