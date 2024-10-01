@@ -938,6 +938,7 @@ body {
             freqCellStation.style.overflow = 'hidden';
             freqCellStation.style.whiteSpace = 'nowrap';
             freqCellStation.style.textOverflow = 'ellipsis';
+			freqCellStation.style.cursor = 'pointer';
             row.appendChild(freqCellStation);
                     // Add hover effect and click event for sending frequency data over WebSocket
                     freqCellStation.addEventListener('mouseover', () => {
