@@ -4,10 +4,9 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 
 ![image](https://github.com/user-attachments/assets/2a7d78b5-c61c-4c62-9c7a-12d125e24a98)
 
-## v2.1a
+## v2.1b
 
-- Design adjustments
-- Implemented the ability to automatically move the web server GUI to the right
+- Implemented horizontal drag and drop movement of the web server (keep the LiveMap button pressed!)
 
 ## Installation notes:
 
@@ -25,9 +24,14 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 - The frequency table can be shown and hidden using the red square.
 - Clicking on the green player symbol opens the link to the live stream (FMSCAN login required).
 - Clicking on the location shows all programs at the location, clicking again returns. The frequency displayed in the location list can be clicked directly.
-- To automatically move the web server interface when running the plugin, please enter the pixel value behind the MoveToRight variable in the script.
+- To move the web server horizontally, press and hold the LiveMap button and drag and drop!
   
 ## History:
+
+### v2.1a
+
+- Design adjustments
+- Implemented the ability to automatically move the web server GUI to the right
 
 ### v2.1
 
