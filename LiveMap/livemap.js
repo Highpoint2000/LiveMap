@@ -156,8 +156,7 @@ body {
     }
     `;
     document.head.appendChild(style);
-	
-	
+		
 	// Function to add drag-and-drop functionality
 	function addDragFunctionalityToWrapper() {
 		const wrapper = document.getElementById('wrapper');
@@ -243,6 +242,8 @@ body {
         toggleButton.style.cursor = 'pointer';
         toggleButton.style.zIndex = '1000'; // Ensures the button is on top
         toggleButton.title = 'Toggle Station List';
+		
+
 
         // Add the toggle functionality
         toggleButton.onclick = () => {
@@ -274,6 +275,7 @@ body {
 
                 // Save state to localStorage
                 localStorage.setItem('stationListVisible', 'visible');
+							
             }
         };
 
@@ -1355,39 +1357,57 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
     let previousFreq = null;
     let timeoutId = null;
     let isFirstUpdateAfterChange = false;
+	let freq_save
 
-    async function handleWebSocketMessage(event) {
-        try {
-            const data = JSON.parse(event.data);
-            picode = data.pi;
-            freq = data.freq;
-            itu = data.txInfo.itu;
-            city = data.txInfo.city;
-            station = data.txInfo.tx;
-            distance = data.txInfo.dist;
-			pol = data.txInfo.pol;
-            ps = data.ps;
-            stationid = data.txInfo.id;
-				
-            if (freq !== previousFreq) {
-                previousFreq = freq;
-                isFirstUpdateAfterChange = true;
+async function handleWebSocketMessage(event) {
+    const frequencyElement = document.getElementById('data-frequency');
+    try {
+        const data = JSON.parse(event.data);
+        const { pi: picode, freq, txInfo: { itu, city, tx: station, dist: distance, pol, id: stationid }, ps } = data;
 
-                if (timeoutId) {
-                    clearTimeout(timeoutId);
-                }
+        if (freq !== previousFreq) {
 
-                timeoutId = setTimeout(() => {
-                    openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
-                    isFirstUpdateAfterChange = false;
-                }, 1000);
-            } else if (!isFirstUpdateAfterChange) {
-                openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
+            // Check if the element exists
+            if (frequencyElement) {
+                frequencyElement.addEventListener('click', debounce(() => {
+                    const dataToSend = `T${(parseFloat(freq_save) * 1000).toFixed(0)}`;
+                    socket.send(dataToSend);
+                    // console.debug("WebSocket sending:", dataToSend);
+                }, 300)); // Debounce for 300 ms
+				freq_save = previousFreq;
+            } else {
+                console.error('Element with ID "data-frequency" not found.');
             }
-        } catch (error) {
-            console.error("Error processing the message:", error);
+
+            previousFreq = freq;
+            isFirstUpdateAfterChange = true;
+
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+
+            timeoutId = setTimeout(() => {
+                openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
+                isFirstUpdateAfterChange = false;
+            }, 1000);
+        } else if (!isFirstUpdateAfterChange) {
+            openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
         }
+    } catch (error) {
+        console.error("Error processing the message:", error);
     }
+}
+
+// Debounce function to limit the rate of invoking a function
+function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+        const context = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), wait);
+    };
+}
+
 
     // Function to add drag functionality to the iframe
     function addDragFunctionality(element) {
