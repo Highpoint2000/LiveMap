@@ -4,11 +4,10 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 
 ![image](https://github.com/user-attachments/assets/2a7d78b5-c61c-4c62-9c7a-12d125e24a98)
 
-## v2.1c
+## v2.1d
 
-- Adjustments for displaying stations without PI code
-- Caching function revised
-- coming soon: Quickly jump to the previous frequency or toggle between two frequencies (click on the web server's frequency display)
+- Quickly jump to the previous frequency or toggle between two frequencies (click on the web server's frequency display)
+- Moving the map and table is limited to screen limits
 
 ## Installation notes:
 
@@ -30,6 +29,11 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 - Click on the web server's frequency display to quickly jump to the previous frequency or toggle between two frequencies
   
 ## History:
+
+### v2.1c
+
+- Adjustments for displaying stations without PI code
+- Caching function revised
 
 ### v2.1b
 
