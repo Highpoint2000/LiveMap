@@ -784,7 +784,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
             row.appendChild(streamCell);
 
             const freqCell = document.createElement('td');
-            freqCell.innerText = `${station.freq.toFixed(1)} MHz`;
+            freqCell.innerText = `${station.freq.toFixed(2)} MHz`;
             freqCell.style.maxWidth = '100px';
 			freqCell.style.width = '100px';
             freqCell.style.paddingLeft = '5px';
@@ -953,7 +953,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
             row.appendChild(streamCell);
 
             const freqCellStation = document.createElement('td');
-            freqCellStation.innerText = `${station.freq.toFixed(1)} MHz`;
+            freqCellStation.innerText = `${station.freq.toFixed(2)} MHz`;
             freqCellStation.style.maxWidth = '100px';
 			freqCellStation.style.width = '100px';
             freqCellStation.style.paddingLeft = '5px';
