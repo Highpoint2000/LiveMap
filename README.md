@@ -2,7 +2,8 @@
 
 This plugin displays the detected and neighboring broadcast stations in real time on a map and table..
 
-![image](https://github.com/user-attachments/assets/2a7d78b5-c61c-4c62-9c7a-12d125e24a98)
+![image](https://github.com/user-attachments/assets/e8afcf3c-1464-449b-abef-0de3c925cf97)
+
 
 ## v2.1d
 
