@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1b)          ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1c)          ///
 ///                                                      ///
-///  by Highpoint                last update: 01.10.24   ///
+///  by Highpoint                last update: 02.10.24   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
@@ -26,8 +26,8 @@ let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 70;
 let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
 
 (() => {
-    const plugin_version = 'V2.1b';
-	const corsAnywhereUrl = 'https://cors-proxy.highpoint2000.synology.me:5001/';
+    const plugin_version = 'V2.1c';
+	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
     let lastStationId = null;
@@ -511,116 +511,136 @@ body {
         return footer;
     }
 
-    // Function to open (or create) the IndexedDB database
-    function openCacheDB() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open('apiCacheDB', 1);
+ // Function to open (or create) the IndexedDB database
+function openCacheDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('apiCacheDB', 1);
 
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains('apiCache')) {
-                    db.createObjectStore('apiCache', { keyPath: 'key' });
-                }
-            };
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains('apiCache')) {
+                db.createObjectStore('apiCache', { keyPath: 'key' });
+            }
+        };
 
-            request.onsuccess = (event) => {
-                resolve(event.target.result);
-            };
+        request.onsuccess = (event) => {
+            resolve(event.target.result);
+        };
 
-            request.onerror = (event) => {
-                reject('IndexedDB error: ' + event.target.errorCode);
-            };
-        });
-    }
+        request.onerror = (event) => {
+            reject('IndexedDB error: ' + event.target.errorCode);
+        };
+    });
+}
 
-    // Function to get cached data
-    function getCachedData(db, key) {
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(['apiCache'], 'readonly');
-            const store = transaction.objectStore('apiCache');
-            const request = store.get(key);
+// Function to get cached data
+function getCachedData(db, key) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['apiCache'], 'readonly');
+        const store = transaction.objectStore('apiCache');
+        const request = store.get(key);
 
-            request.onsuccess = (event) => {
-                resolve(event.target.result);
-            };
+        request.onsuccess = (event) => {
+            resolve(event.target.result);
+        };
 
-            request.onerror = (event) => {
-                reject('Failed to get cached data');
-            };
-        });
-    }
+        request.onerror = (event) => {
+            reject('Failed to get cached data');
+        };
+    });
+}
 
-    // Function to cache data
-    function cacheData(db, key, data) {
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(['apiCache'], 'readwrite');
-            const store = transaction.objectStore('apiCache');
-            const request = store.put({ key, data });
+// Function to cache data with a timestamp
+function cacheData(db, key, data) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['apiCache'], 'readwrite');
+        const store = transaction.objectStore('apiCache');
 
-            request.onsuccess = () => {
-                resolve();
-            };
+        const cacheEntry = {
+            key,
+            data,
+            cachedAt: Date.now() // Store the current timestamp
+        };
 
-            request.onerror = (event) => {
-                reject('Failed to cache data: ' + event.target.errorCode);
-            };
-        });
-    }
+        const request = store.put(cacheEntry);
 
-    // Main function with cache mechanism
-    async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid, pol, foundPI) {
+        request.onsuccess = () => {
+            resolve();
+        };
 
-        try {
-            let response;
-            const txposSwitch = document.getElementById('txposSwitch');
-            const db = await openCacheDB();
-            
-            // Create a cache key based on the parameters
-            const cacheKey = `freq:${freq}-lat:${txposLat}-lon:${txposLon}-radius:${radius}-picode:${picode}-stationid:${stationid}`;
-            
-            // Check if data is already in cache
-            const cachedData = await getCachedData(db, cacheKey);
-            if (cachedData) {
+        request.onerror = (event) => {
+            reject('Failed to cache data: ' + event.target.errorCode);
+        };
+    });
+}
+
+// Helper function to check if cached data is older than 7 days
+function isCacheExpired(cachedAt) {
+    const sevenDaysInMillis = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+    const currentTime = Date.now();
+    return (currentTime - cachedAt) > sevenDaysInMillis;
+}
+
+// Main function with cache mechanism
+async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid, pol, foundPI) {
+
+    try {
+        let response;
+        const txposSwitch = document.getElementById('txposSwitch');
+        const db = await openCacheDB();
+        
+        // Create a cache key based on the parameters
+        const cacheKey = `freq:${freq}-lat:${txposLat}-lon:${txposLon}-radius:${radius}-picode:${picode}-stationid:${stationid}`;
+        
+        // Check if data is already in cache
+        const cachedData = await getCachedData(db, cacheKey);
+
+        if (cachedData) {
+            // Check if the cached data is older than 7 days
+            if (!isCacheExpired(cachedData.cachedAt)) {
                 debugLog('Returning cached data:', cachedData);
                 displayStationData(cachedData.data, txposLat, txposLon, picode, pol, foundPI);
                 return;
-            }
-
-            // If no cached data, make the API request
-            if (txposSwitch && txposSwitch.checked) {
-                if (stationid) {
-                    response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}`);
-                    txposLat = LAT;
-                    txposLon = LON;
-                } else {
-                    response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${txposLat}&lon=${txposLon}&freq=${freq}&r=${radius}`);
-                }
             } else {
-
-                if (stationid || picode !== '?' && foundPI) {
-                    response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}`);
-                } else {
-                    response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}&r=${radius}`);       
+                debugLog('Cache expired, fetching new data...');
             }
-            }
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            debugLog('Fetched data from API:', data);
-
-            // Cache the API response
-            await cacheData(db, cacheKey, data);
-
-            // Display the station data
-            displayStationData(data, txposLat, txposLon, picode, pol, foundPI);
-
-        } catch (error) {
-            console.error('Error fetching station data:', error);
         }
+
+        // If no cached data or data is expired, make the API request
+        if (txposSwitch && txposSwitch.checked) {
+            if (stationid) {
+                response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}`);
+                txposLat = LAT;
+                txposLon = LON;
+            } else {
+                response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${txposLat}&lon=${txposLon}&freq=${freq}&r=${radius}`);
+            }
+        } else {
+
+            if (stationid || picode !== '?' && foundPI) {
+                response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}`);
+            } else {
+                response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}&r=${radius}`);       
+            }
+        }
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        debugLog('Fetched data from API:', data);
+
+        // Cache the API response with a timestamp
+        await cacheData(db, cacheKey, data);
+
+        // Display the station data
+        displayStationData(data, txposLat, txposLon, picode, pol, foundPI);
+
+    } catch (error) {
+        console.error('Error fetching station data:', error);
     }
+}
 
     // Function to calculate the distance between two geographical points
     function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -641,7 +661,7 @@ body {
 
     async function displayStationData(data, txposLat, txposLon, picode, pol, foundPI) {
         if (!data || !data.locations || typeof data.locations !== 'object') {
-            console.warn('No valid data received for station display.');
+            // console.warn('No valid data received for station display.');
             return;
         }
 
@@ -694,6 +714,7 @@ body {
                         itu,
                         freq: parseFloat(station.freq)
                     };
+
                     stationsWithCoordinates.push(stationData);
                     allStations.push(stationData);
 										
@@ -708,16 +729,18 @@ body {
         });
 
         const filteredStations = stationsWithCoordinates.filter(station => {
+			
+			
         
             if (stationid) {
                 return station.id === stationid;
             } else if (picode !== '?' && station.pi && foundPI) {
                 return picode === station.pi && parseFloat(station.freq) === parseFloat(freq);
-            } else if (station.pi) {
+            } else {
                 return parseFloat(station.freq) === parseFloat(freq);
             }
         });
-
+		
         const table = document.createElement('table');
         table.style.width = '100%';
         table.style.borderCollapse = 'collapse';
@@ -774,7 +797,9 @@ body {
             row.appendChild(freqCell);
 
             const piCell = document.createElement('td');
-            piCell.innerText = pi;
+			if (station.pi) {
+				piCell.innerText = pi;
+			}
             piCell.style.maxWidth = '70px';
 			piCell.style.width = '70px';
             piCell.style.paddingLeft = '5px';
@@ -958,7 +983,9 @@ body {
                     };
 
             const piCell = document.createElement('td');
-            piCell.innerText = pi;
+            if (station.pi) {
+				piCell.innerText = pi;
+			}
             piCell.style.maxWidth = '70px';
 			piCell.style.width = '70px';
             piCell.style.paddingLeft = '5px';
