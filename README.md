@@ -8,6 +8,7 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 
 - Adjustments for displaying stations without PI code
 - Caching function revised
+- Quickly jump to the previous frequency or toggle between two frequencies (click on the web server's frequency display)
 
 ## Installation notes:
 
@@ -26,6 +27,7 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 - Clicking on the green player symbol opens the link to the live stream (FMSCAN login required).
 - Clicking on the location shows all programs at the location, clicking again returns. The frequency displayed in the location list can be clicked directly.
 - To move the web server horizontally, press and hold the LiveMap button and drag and drop!
+- Click on the web server's frequency display to quickly jump to the previous frequency or toggle between two frequencies
   
 ## History:
 
