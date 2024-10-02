@@ -1359,55 +1359,78 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
     let timeoutId = null;
     let isFirstUpdateAfterChange = false;
 	let freq_save;
-
+	
     async function handleWebSocketMessage(event) {
         try {
-            const data = JSON.parse(event.data);
-            picode = data.pi;
-            freq = data.freq;
-            itu = data.txInfo.itu;
-            city = data.txInfo.city;
-            station = data.txInfo.tx;
-            distance = data.txInfo.dist;
-			pol = data.txInfo.pol;
-            ps = data.ps;
-            stationid = data.txInfo.id;
-				
+            const data = JSON.parse(event.data); // Parse the incoming WebSocket message
+            picode = data.pi; // Extract pi code from data
+            freq = data.freq; // Extract frequency from data
+            itu = data.txInfo.itu; // Extract ITU information from transmission info
+            city = data.txInfo.city; // Extract city from transmission info
+            station = data.txInfo.tx; // Extract station from transmission info
+            distance = data.txInfo.dist; // Extract distance from transmission info
+            pol = data.txInfo.pol; // Extract polarization from transmission info
+            ps = data.ps; // Extract PS from data
+            stationid = data.txInfo.id; // Extract station ID from transmission info
+            
+            // Check if the frequency has changed
             if (freq !== previousFreq) {
-				
-				const frequencyElement = document.getElementById('data-frequency');
-				// Check if the element exists
-				if (frequencyElement) {
-					freq_save = previousFreq;
-					frequencyElement.addEventListener('click', () => {  // Add a click event listener to the span		
-						const dataToSend = `T${(parseFloat(freq_save) * 1000).toFixed(0)}`; // Send the data using the WebSocket	
-						socket.send(dataToSend);
-						debugLog("WebSocket sending:", dataToSend);					
-					});
-					
-				} else {
-					console.error('Element with ID "data-frequency" not found.');
-				}
-				
-                previousFreq = freq;
+                const frequencyElement = document.getElementById('data-frequency'); // Get the frequency element
+                
+                // Check if the element exists
+                if (frequencyElement) {
+                    freq_save = previousFreq; // Save the previous frequency
 
-                isFirstUpdateAfterChange = true;
+                    const freqContainer = document.getElementById('freq-container'); // Find the container element
+                    let existingDiv = freqContainer.querySelector('.text-small.text-gray'); // Check if the div already exists
 
+                    if (freq_save) {
+                        if (existingDiv) {
+                            existingDiv.textContent = freq_save; // Update the existing div with the previous frequency
+                        } else {
+                            const newDivElement = document.createElement('div'); // Create a new div element for the previous frequency
+
+                            newDivElement.className = 'text-small text-gray'; // Set the classes of the new div element
+                            newDivElement.textContent = freq_save; // Set the text content of the new element to freq_save
+                            newDivElement.style.marginBottom = '-20px'; // Add margin-bottom to the new element
+
+                            freqContainer.insertBefore(newDivElement, frequencyElement); // Insert the new div before the frequency element
+                        }
+                    }
+
+                    // Add a click event listener to the frequency element
+                    frequencyElement.addEventListener('click', () => {
+                        const dataToSend = `T${(parseFloat(freq_save) * 1000).toFixed(0)}`; // Prepare data to send via WebSocket
+                        socket.send(dataToSend); // Send the data using the WebSocket
+                        debugLog("WebSocket sending:", dataToSend); // Log the sent data
+                    });
+                } else {
+                    console.error('Element with ID "data-frequency" not found.'); // Log error if element is not found
+                }
+
+                previousFreq = freq; // Update the previous frequency
+
+                isFirstUpdateAfterChange = true; // Set flag for the first update after frequency change
+
+                // Clear any existing timeout
                 if (timeoutId) {
                     clearTimeout(timeoutId);
                 }
 
+                // Set a timeout to open or update the iframe
                 timeoutId = setTimeout(() => {
                     openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
-                    isFirstUpdateAfterChange = false;
+                    isFirstUpdateAfterChange = false; // Reset the update flag
                 }, 1000);
             } else if (!isFirstUpdateAfterChange) {
+                // If the frequency has not changed, just update the iframe
                 openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
             }
         } catch (error) {
-            console.error("Error processing the message:", error);
+            console.error("Error processing the message:", error); // Log any errors that occur
         }
     }
+
 
   // Function to add drag functionality to the iframe
 function addDragFunctionality(element) {
