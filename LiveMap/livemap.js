@@ -1357,27 +1357,14 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
     let previousFreq = null;
     let timeoutId = null;
     let isFirstUpdateAfterChange = false;
-	let freq_save
 
 async function handleWebSocketMessage(event) {
-    const frequencyElement = document.getElementById('data-frequency');
+
     try {
         const data = JSON.parse(event.data);
         const { pi: picode, freq, txInfo: { itu, city, tx: station, dist: distance, pol, id: stationid }, ps } = data;
 
         if (freq !== previousFreq) {
-
-            // Check if the element exists
-            if (frequencyElement) {
-                frequencyElement.addEventListener('click', debounce(() => {
-                    const dataToSend = `T${(parseFloat(freq_save) * 1000).toFixed(0)}`;
-                    socket.send(dataToSend);
-                    // console.debug("WebSocket sending:", dataToSend);
-                }, 50)); // Debounce for 50 ms
-				freq_save = previousFreq;
-            } else {
-                console.error('Element with ID "data-frequency" not found.');
-            }
 
             previousFreq = freq;
             isFirstUpdateAfterChange = true;
@@ -1397,17 +1384,6 @@ async function handleWebSocketMessage(event) {
         console.error("Error processing the message:", error);
     }
 }
-
-// Debounce function to limit the rate of invoking a function
-function debounce(func, wait) {
-    let timeout;
-    return function (...args) {
-        const context = this;
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(context, args), wait);
-    };
-}
-
 
     // Function to add drag functionality to the iframe
     function addDragFunctionality(element) {
