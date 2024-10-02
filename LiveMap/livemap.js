@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1c)          ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1d)          ///
 ///                                                      ///
 ///  by Highpoint                last update: 02.10.24   ///
 ///                                                      ///
@@ -26,7 +26,7 @@ let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 70;
 let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
 
 (() => {
-    const plugin_version = 'V2.1c';
+    const plugin_version = 'V2.1d';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
@@ -1242,6 +1242,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 
     // Async function to create or update the iframe based on the provided data
     async function openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius) {
+		
         if (!LiveMapActive) return;
 
         foundPI = false; // Initialize foundPI
@@ -1357,70 +1358,113 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
     let previousFreq = null;
     let timeoutId = null;
     let isFirstUpdateAfterChange = false;
+	let freq_save;
 
-async function handleWebSocketMessage(event) {
+    async function handleWebSocketMessage(event) {
+        try {
+            const data = JSON.parse(event.data);
+            picode = data.pi;
+            freq = data.freq;
+            itu = data.txInfo.itu;
+            city = data.txInfo.city;
+            station = data.txInfo.tx;
+            distance = data.txInfo.dist;
+			pol = data.txInfo.pol;
+            ps = data.ps;
+            stationid = data.txInfo.id;
+				
+            if (freq !== previousFreq) {
+				
+				const frequencyElement = document.getElementById('data-frequency');
+				// Check if the element exists
+				if (frequencyElement) {
+					freq_save = previousFreq;
+					frequencyElement.addEventListener('click', () => {  // Add a click event listener to the span		
+						const dataToSend = `T${(parseFloat(freq_save) * 1000).toFixed(0)}`; // Send the data using the WebSocket	
+						socket.send(dataToSend);
+						debugLog("WebSocket sending:", dataToSend);					
+					});
+					
+				} else {
+					console.error('Element with ID "data-frequency" not found.');
+				}
+				
+                previousFreq = freq;
 
-    try {
-        const data = JSON.parse(event.data);
-        const { pi: picode, freq, txInfo: { itu, city, tx: station, dist: distance, pol, id: stationid }, ps } = data;
+                isFirstUpdateAfterChange = true;
 
-        if (freq !== previousFreq) {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
 
-            previousFreq = freq;
-            isFirstUpdateAfterChange = true;
-
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-            }
-
-            timeoutId = setTimeout(() => {
+                timeoutId = setTimeout(() => {
+                    openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
+                    isFirstUpdateAfterChange = false;
+                }, 1000);
+            } else if (!isFirstUpdateAfterChange) {
                 openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
-                isFirstUpdateAfterChange = false;
-            }, 1000);
-        } else if (!isFirstUpdateAfterChange) {
-            openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
+            }
+        } catch (error) {
+            console.error("Error processing the message:", error);
         }
-    } catch (error) {
-        console.error("Error processing the message:", error);
+    }
+
+  // Function to add drag functionality to the iframe
+function addDragFunctionality(element) {
+    let offsetX = 0, offsetY = 0, startX = 0, startY = 0;
+
+    element.onmousedown = function(e) {
+        if (e.target.id !== 'resizer') {
+            e.preventDefault();
+            startX = e.clientX;
+            startY = e.clientY;
+            document.onmousemove = onMouseMove;
+            document.onmouseup = onMouseUp;
+        }
+    };
+
+    function onMouseMove(e) {
+        offsetX = startX - e.clientX;
+        offsetY = startY - e.clientY;
+        startX = e.clientX;
+        startY = e.clientY;
+
+        // Berechne neue Position
+        let newLeft = element.offsetLeft - offsetX;
+        let newTop = element.offsetTop - offsetY;
+
+        // Begrenzung innerhalb des Fensters
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+
+        // Überprüfen der Grenzen
+        if (newLeft < 0) newLeft = 0;
+        if (newTop < 0) newTop = 0;
+        if (newLeft + element.offsetWidth > windowWidth) {
+            newLeft = windowWidth - element.offsetWidth;
+        }
+        if (newTop + element.offsetHeight > windowHeight) {
+            newTop = windowHeight - element.offsetHeight;
+        }
+
+        // Setzen der neuen Position
+        element.style.left = newLeft + "px";
+        element.style.top = newTop + "px";
+
+        if (stationListContainer) {
+            stationListContainer.style.left = `${element.offsetLeft}px`;
+            stationListContainer.style.top = `${element.offsetTop + element.offsetHeight}px`;
+        }
+    }
+
+    function onMouseUp() {
+        localStorage.setItem('iframeLeft', element.style.left);
+        localStorage.setItem('iframeTop', element.style.top);
+        document.onmousemove = null;
+        document.onmouseup = null;
     }
 }
 
-    // Function to add drag functionality to the iframe
-    function addDragFunctionality(element) {
-        let offsetX = 0, offsetY = 0, startX = 0, startY = 0;
-
-        element.onmousedown = function(e) {
-            if (e.target.id !== 'resizer') {
-                e.preventDefault();
-                startX = e.clientX;
-                startY = e.clientY;
-                document.onmousemove = onMouseMove;
-                document.onmouseup = onMouseUp;
-            }
-        };
-
-        function onMouseMove(e) {
-            offsetX = startX - e.clientX;
-            offsetY = startY - e.clientY;
-            startX = e.clientX;
-            startY = e.clientY;
-
-            element.style.left = (element.offsetLeft - offsetX) + "px";
-            element.style.top = (element.offsetTop - offsetY) + "px";
-
-            if (stationListContainer) {
-                stationListContainer.style.left = `${element.offsetLeft}px`;
-                stationListContainer.style.top = `${element.offsetTop + element.offsetHeight}px`;
-            }
-        }
-
-        function onMouseUp() {
-            localStorage.setItem('iframeLeft', element.style.left);
-            localStorage.setItem('iframeTop', element.style.top);
-            document.onmousemove = null;
-            document.onmouseup = null;
-        }
-    }
 
     // Function to add resize functionality to the iframe
     function addResizeFunctionality(element) {
