@@ -4,9 +4,10 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 
 ![image](https://github.com/user-attachments/assets/2a7d78b5-c61c-4c62-9c7a-12d125e24a98)
 
-## v2.1b
+## v2.1c
 
-- Implemented horizontal drag and drop movement of the web server (keep the LiveMap button pressed!)
+- Adjustments for displaying stations without PI code
+- Caching function revised
 
 ## Installation notes:
 
@@ -27,6 +28,10 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 - To move the web server horizontally, press and hold the LiveMap button and drag and drop!
   
 ## History:
+
+### v2.1b
+
+- Implemented horizontal drag and drop movement of the web server (keep the LiveMap button pressed!)
 
 ### v2.1a
 
