@@ -1373,7 +1373,7 @@ async function handleWebSocketMessage(event) {
                     const dataToSend = `T${(parseFloat(freq_save) * 1000).toFixed(0)}`;
                     socket.send(dataToSend);
                     // console.debug("WebSocket sending:", dataToSend);
-                }, 300)); // Debounce for 300 ms
+                }, 50)); // Debounce for 50 ms
 				freq_save = previousFreq;
             } else {
                 console.error('Element with ID "data-frequency" not found.');
