@@ -8,7 +8,7 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 
 - Adjustments for displaying stations without PI code
 - Caching function revised
-- Quickly jump to the previous frequency or toggle between two frequencies (click on the web server's frequency display)
+- coming soon: Quickly jump to the previous frequency or toggle between two frequencies (click on the web server's frequency display)
 
 ## Installation notes:
 
