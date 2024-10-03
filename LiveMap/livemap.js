@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1d)          ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1e)          ///
 ///                                                      ///
-///  by Highpoint                last update: 02.10.24   ///
+///  by Highpoint                last update: 03.10.24   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
@@ -20,13 +20,13 @@ function debugLog(...messages) {
 }
 
 // Define iframe size and position variables
-let iframeWidth = parseInt(localStorage.getItem('iframeWidth')) || 450; 
-let iframeHeight = parseInt(localStorage.getItem('iframeHeight')) || 450; 
-let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 70; 
-let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 120;
+let iframeWidth = parseInt(localStorage.getItem('iframeWidth')) || 600; 
+let iframeHeight = parseInt(localStorage.getItem('iframeHeight')) || 650; 
+let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
+let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
 (() => {
-    const plugin_version = 'V2.1d';
+    const plugin_version = 'V2.1e';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
@@ -903,43 +903,47 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
         stationListContainer.appendChild(table);
         stationListContainer.style.width = `${iframeContainer.offsetWidth}px`;
 
-        // Allow clicking on the city cells to display more stations from the same city
-        const cityCells = table.querySelectorAll('td:nth-child(5)');
-        cityCells.forEach(cell => {
-            cell.style.cursor = 'pointer';
-            cell.onclick = () => {
-                const cityToDisplay = cell.innerText.split(' [')[0];
+// Allow clicking on the city cells to display more stations from the same city
+const cityCells = table.querySelectorAll('td:nth-child(5)');
+cityCells.forEach(cell => {
+    cell.style.cursor = 'pointer';
+    cell.onclick = () => {
+        const cityToDisplay = cell.innerText.split(' [')[0]; // Define cityToDisplay here
 
-                const cityStation = allStations.find(station => station.city === cityToDisplay);
-                if (!cityStation) {
-                    console.warn('City not found:', cityToDisplay);
-                    return;
-                }
+        const cityStation = allStations.find(station => station.city === cityToDisplay);
+        if (!cityStation) {
+            console.warn('City not found:', cityToDisplay);
+            return;
+        }
 
-                const distanceToCity = calculateDistance(txposLat, txposLon, cityStation.lat, cityStation.lon);
-                const stationsOfCity = allStations.filter(station => station.city === cityToDisplay);
+        const distanceToCity = calculateDistance(txposLat, txposLon, cityStation.lat, cityStation.lon);
 
-                // Clear the table before displaying stations from the selected city
-                table.innerHTML = '';
+        // Filter and sort the stations of the selected city by ERP in descending order
+        const stationsOfCity = allStations
+            .filter(station => station.city === cityToDisplay)
+            .sort((a, b) => b.erp - a.erp); // Sorting in descending order based on ERP
 
-                // Iterate through the stations from the same city and create table rows
-                stationsOfCity.forEach(({ station, city, distance, pi, erp, id, itu }) => {
-                    const row = document.createElement('tr');
+        // Clear the table before displaying stations from the selected city
+        table.innerHTML = '';
 
-                    // Highlight the row if it's the current station
-                    if (station.id === stationid) {
-                        row.classList.add('bg-color-1');
-                    } else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
-                        row.classList.add('bg-color-1');
-                    }
+        // Iterate through the stations from the same city and create table rows
+        stationsOfCity.forEach(({ station, city, distance, pi, erp, id, itu }) => {
+            const row = document.createElement('tr');
 
-                    // Create a cell with a link to the station stream
-                    const streamCell = document.createElement('td');
-                    const streamLink = document.createElement('a');
-                    const playIcon = document.createElement('i');
-                    playIcon.className = 'fas fa-play';
-                    playIcon.style.color = 'green';
-                    playIcon.style.cursor = 'pointer';
+            // Highlight the row if it's the current station
+            if (station.id === stationid) {
+                row.classList.add('bg-color-1');
+            } else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
+                row.classList.add('bg-color-1');
+            }
+
+            // Create a cell with a link to the station stream
+            const streamCell = document.createElement('td');
+            const streamLink = document.createElement('a');
+            const playIcon = document.createElement('i');
+            playIcon.className = 'fas fa-play';
+            playIcon.style.color = 'green';
+            playIcon.style.cursor = 'pointer';
 
             streamLink.appendChild(playIcon);
             streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
@@ -949,51 +953,52 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
             streamCell.appendChild(streamLink);
             streamCell.style.paddingLeft = '10px';
             streamCell.style.paddingRight = '10px';
-			streamCell.style.width = '5px';
-			streamCell.style.maxWidth = '5px';
+            streamCell.style.width = '5px';
+            streamCell.style.maxWidth = '5px';
             streamCell.style.textAlign = 'left';
             row.appendChild(streamCell);
 
             const freqCellStation = document.createElement('td');
             freqCellStation.innerText = `${station.freq.toFixed(2)} MHz`;
             freqCellStation.style.maxWidth = '100px';
-			freqCellStation.style.width = '100px';
+            freqCellStation.style.width = '100px';
             freqCellStation.style.paddingLeft = '5px';
-			freqCellStation.style.paddingRight = '25px';
+            freqCellStation.style.paddingRight = '25px';
             freqCellStation.style.color = 'white';
             freqCellStation.style.textAlign = 'right';
             freqCellStation.style.overflow = 'hidden';
             freqCellStation.style.whiteSpace = 'nowrap';
             freqCellStation.style.textOverflow = 'ellipsis';
-			freqCellStation.style.cursor = 'pointer';
+            freqCellStation.style.cursor = 'pointer';
             row.appendChild(freqCellStation);
-                    // Add hover effect and click event for sending frequency data over WebSocket
-                    freqCellStation.addEventListener('mouseover', () => {
-                        freqCellStation.style.textDecoration = 'underline';
-                        freqCellStation.style.color = 'var(--color-4)';
-                    });
 
-                    freqCellStation.addEventListener('mouseout', () => {
-                        freqCellStation.style.textDecoration = 'none';
-                        freqCellStation.style.color = 'white';
-                    });
+            // Add hover effect and click event for sending frequency data over WebSocket
+            freqCellStation.addEventListener('mouseover', () => {
+                freqCellStation.style.textDecoration = 'underline';
+                freqCellStation.style.color = 'var(--color-4)';
+            });
 
-                    freqCellStation.onclick = () => {
-                        const dataToSend = `T${(parseFloat(station.freq) * 1000).toFixed(0)}`;
-                        socket.send(dataToSend);
-                        debugLog("WebSocket sending:", dataToSend);
-                    };
+            freqCellStation.addEventListener('mouseout', () => {
+                freqCellStation.style.textDecoration = 'none';
+                freqCellStation.style.color = 'white';
+            });
+
+            freqCellStation.onclick = () => {
+                const dataToSend = `T${(parseFloat(station.freq) * 1000).toFixed(0)}`;
+                socket.send(dataToSend);
+                debugLog("WebSocket sending:", dataToSend);
+            };
 
             const piCell = document.createElement('td');
             if (station.pi) {
-				piCell.innerText = pi;
-			}
+                piCell.innerText = pi;
+            }
             piCell.style.maxWidth = '70px';
-			piCell.style.width = '70px';
+            piCell.style.width = '70px';
             piCell.style.paddingLeft = '5px';
-			piCell.style.paddingRight = '25px';
+            piCell.style.paddingRight = '25px';
             piCell.style.color = 'white';
-			piCell.style.textAlign = 'right';
+            piCell.style.textAlign = 'right';
             piCell.style.overflow = 'hidden';
             piCell.style.whiteSpace = 'nowrap';
             piCell.style.textOverflow = 'ellipsis';
@@ -1002,77 +1007,77 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
             const stationCell = document.createElement('td');
             stationCell.innerText = station.station;
             stationCell.style.maxWidth = '160px';
-			stationCell.style.width = '160px';
+            stationCell.style.width = '160px';
             stationCell.style.paddingLeft = '5px';
             stationCell.style.paddingRight = '5px';
             stationCell.style.color = 'white';
-			stationCell.style.textAlign = 'left';
+            stationCell.style.textAlign = 'left';
             stationCell.style.overflow = 'hidden';
             stationCell.style.whiteSpace = 'nowrap';
             stationCell.style.textOverflow = 'ellipsis';
             row.appendChild(stationCell);
 
-                    // Create and append the city and ITU code cell
-                    const cityAllCell = document.createElement('td');
-                    cityAllCell.innerText = `${city} [${itu}]`;
-                    cityAllCell.style.maxWidth = '160px';
-					cityAllCell.style.width = '160px';
-                    cityAllCell.style.paddingRight = '5px';
-                    cityAllCell.style.paddingLeft = '5px';
-                    cityAllCell.title = 'open frequency list';
-                    cityAllCell.style.color = 'white';
-					cityAllCell.style.textAlign = 'left';
-                    cityAllCell.style.overflow = 'hidden';
-                    cityAllCell.style.whiteSpace = 'nowrap';
-                    cityAllCell.style.textOverflow = 'ellipsis';
-                    cityAllCell.style.cursor = 'pointer';
-                    row.appendChild(cityAllCell);
+            // Create and append the city and ITU code cell
+            const cityAllCell = document.createElement('td');
+            cityAllCell.innerText = `${city} [${itu}]`;
+            cityAllCell.style.maxWidth = '160px';
+            cityAllCell.style.width = '160px';
+            cityAllCell.style.paddingRight = '5px';
+            cityAllCell.style.paddingLeft = '5px';
+            cityAllCell.title = 'open frequency list';
+            cityAllCell.style.color = 'white';
+            cityAllCell.style.textAlign = 'left';
+            cityAllCell.style.overflow = 'hidden';
+            cityAllCell.style.whiteSpace = 'nowrap';
+            cityAllCell.style.textOverflow = 'ellipsis';
+            cityAllCell.style.cursor = 'pointer';
+            row.appendChild(cityAllCell);
 
-                    // Add hover effect for city cell
-                    cityAllCell.addEventListener('mouseover', () => {
-                        cityAllCell.style.textDecoration = 'underline';
-                        cityAllCell.style.color = 'var(--color-5)';
-                    });
+            // Add hover effect for city cell
+            cityAllCell.addEventListener('mouseover', () => {
+                cityAllCell.style.textDecoration = 'underline';
+                cityAllCell.style.color = 'var(--color-5)';
+            });
 
-                    cityAllCell.addEventListener('mouseout', () => {
-                        cityAllCell.style.textDecoration = 'none';
-                        cityAllCell.style.color = 'white';
-                    });
+            cityAllCell.addEventListener('mouseout', () => {
+                cityAllCell.style.textDecoration = 'none';
+                cityAllCell.style.color = 'white';
+            });
 
-                    // Add click event to display more stations from the same city
-                    cityAllCell.addEventListener('click', () => {
-                        displayStationData(data, txposLat, txposLon, foundPI);
-                    });
+            // Add click event to display more stations from the same city
+            cityAllCell.addEventListener('click', () => {
+                displayStationData(data, txposLat, txposLon, foundPI); // Ensure this function is defined correctly
+            });
 
-                    // Create and append the distance cell
-                    const distanceCell = document.createElement('td');
-                    distanceCell.innerText = `${Math.round(distanceToCity)} km`;
-                    distanceCell.style.padding = '0';
-                    distanceCell.style.maxWidth = '75px';
-                    distanceCell.style.paddingLeft = '10px';
-                    distanceCell.style.paddingRight = '10px';
-                    distanceCell.style.color = 'white';
-                    distanceCell.style.textAlign = 'right';
-                    distanceCell.style.overflow = 'hidden';
-                    distanceCell.style.whiteSpace = 'nowrap';
-                    distanceCell.style.textOverflow = 'ellipsis';
-                    row.appendChild(distanceCell);
-					
-			const polCell = document.createElement('td');
+            // Create and append the distance cell
+            const distanceCell = document.createElement('td');
+            distanceCell.innerText = `${Math.round(distanceToCity)} km`;
+            distanceCell.style.padding = '0';
+            distanceCell.style.maxWidth = '75px';
+            distanceCell.style.paddingLeft = '10px';
+            distanceCell.style.paddingRight = '10px';
+            distanceCell.style.color = 'white';
+            distanceCell.style.textAlign = 'right';
+            distanceCell.style.overflow = 'hidden';
+            distanceCell.style.whiteSpace = 'nowrap';
+            distanceCell.style.textOverflow = 'ellipsis';
+            row.appendChild(distanceCell);
+
+            const polCell = document.createElement('td');
             polCell.innerText = `${station.pol.substring(0, 1)}`;
             polCell.style.maxWidth = '1px';
-			polCell.style.width = '1px';
+            polCell.style.width = '1px';
             polCell.style.paddingLeft = '5px';
             polCell.style.paddingRight = '15px';
             polCell.style.color = 'white';
             polCell.style.textAlign = 'right';       
-			row.appendChild(polCell);
+            row.appendChild(polCell);
 
-                    // Create and append the ERP cell
+            // Create and append the ERP cell
             const erpCell = document.createElement('td');
             erpCell.innerText = `${erp.toFixed(2)} kW`;
             erpCell.style.maxWidth = '100px';
-			erpCell.style.width = '100px';
+            erpCell.style.width = '100px';
             erpCell.style.paddingLeft = '5px';
             erpCell.style.paddingRight = '5px';
             erpCell.style.color = 'white';
@@ -1081,32 +1086,33 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
             erpCell.style.whiteSpace = 'nowrap';
             erpCell.style.textOverflow = 'ellipsis';
 
-                    if (erp < 0.5) {
-                        // ERP less than 0.5 kW, set background color to purple
-                        erpCell.style.backgroundColor = '#7800FF';
-                    } else if (erp >= 0.5 && erp < 5.0) {
-                        // ERP between 0.5 kW and 5.0 kW, set background color to blue
-                        erpCell.style.backgroundColor = '#238BFF';
-                    } else if (erp >= 5.0) {
-                        // ERP greater than or equal to 5.0 kW, set background color to dark blue
-                        erpCell.style.backgroundColor = '#0000FF';
-                    }
+            if (erp < 0.5) {
+                // ERP less than 0.5 kW, set background color to purple
+                erpCell.style.backgroundColor = '#7800FF';
+            } else if (erp >= 0.5 && erp < 5.0) {
+                // ERP between 0.5 kW and 5.0 kW, set background color to blue
+                erpCell.style.backgroundColor = '#238BFF';
+            } else if (erp >= 5.0) {
+                // ERP greater than or equal to 5.0 kW, set background color to dark blue
+                erpCell.style.backgroundColor = '#0000FF';
+            }
 
-                    row.appendChild(erpCell);
+            row.appendChild(erpCell);
 
-                    table.appendChild(row);
-					
-					emptyRow = document.createElement('tr');
-					emptyCell = document.createElement('td');
-					
-					emptyCell.colSpan = 7; // Anzahl der Spalten anpassen
-					emptyCell.style.height = '2px'; // Höhe der Leerzeile
-					emptyRow.appendChild(emptyCell);
-					table.appendChild(emptyRow);
-					
-                });
-            };
+            table.appendChild(row);
+            
+            // Create and append an empty row for spacing
+            const emptyRow = document.createElement('tr');
+            const emptyCell = document.createElement('td');
+            
+            emptyCell.colSpan = 7; // Adjust the number of columns accordingly
+            emptyCell.style.height = '2px'; // Height of the empty row
+            emptyRow.appendChild(emptyCell);
+            table.appendChild(emptyRow);
         });
+    };
+});
+
 	}
 
 // Function to open (or create) the IndexedDB database
@@ -1355,82 +1361,151 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
         }
     }
 
-    let previousFreq = null;
-    let timeoutId = null;
-    let isFirstUpdateAfterChange = false;
-	let freq_save;
-	
-    async function handleWebSocketMessage(event) {
-        try {
-            const data = JSON.parse(event.data); // Parse the incoming WebSocket message
-            picode = data.pi; // Extract pi code from data
-            freq = data.freq; // Extract frequency from data
-            itu = data.txInfo.itu; // Extract ITU information from transmission info
-            city = data.txInfo.city; // Extract city from transmission info
-            station = data.txInfo.tx; // Extract station from transmission info
-            distance = data.txInfo.dist; // Extract distance from transmission info
-            pol = data.txInfo.pol; // Extract polarization from transmission info
-            ps = data.ps; // Extract PS from data
-            stationid = data.txInfo.id; // Extract station ID from transmission info
-            
-            // Check if the frequency has changed
-            if (freq !== previousFreq) {
-                const frequencyElement = document.getElementById('data-frequency'); // Get the frequency element
-                
-                // Check if the element exists
-                if (frequencyElement) {
-                    freq_save = previousFreq; // Save the previous frequency
+let previousFreq = null;
+let timeoutId = null;
+let isFirstUpdateAfterChange = false;
+let freq_save;
+let isToggleEnabled = true; // Flag to track if the toggle is enabled
+let longPressTimer = null; // Timer for detecting long press
+let longPressDuration = 1000; // Duration in milliseconds for long press (1 second)
+let isLongPressTriggered = false; // Flag to track whether long press was triggered
 
-                    const freqContainer = document.getElementById('freq-container'); // Find the container element
-                    let existingDiv = freqContainer.querySelector('.text-small.text-gray'); // Check if the div already exists
+const freqContainer = document.getElementById('freq-container');
+freqContainer.title = "Toggle frequency - previous frequency | Hold longer for deactivating/activating";
 
-                    if (freq_save) {
-                        if (existingDiv) {
-                            existingDiv.textContent = freq_save; // Update the existing div with the previous frequency
-                        } else {
-                            const newDivElement = document.createElement('div'); // Create a new div element for the previous frequency
+const frequencyElement = document.getElementById('data-frequency'); // Get the frequency element
 
-                            newDivElement.className = 'text-small text-gray'; // Set the classes of the new div element
-                            newDivElement.textContent = freq_save; // Set the text content of the new element to freq_save
-                            newDivElement.style.marginBottom = '-20px'; // Add margin-bottom to the new element
+// Check localStorage for saved toggle state and restore it
+const savedToggleState = localStorage.getItem('toggleEnabled');
+debugLog("Loaded toggle state from localStorage:", savedToggleState);
 
-                            freqContainer.insertBefore(newDivElement, frequencyElement); // Insert the new div before the frequency element
-                        }
-                    }
+// Restore the toggle state if found
+if (savedToggleState === 'false') {
+    isToggleEnabled = false; // Restore the toggle state from localStorage
+	debugLog("Restoring toggle state: disabled.");
+} else {
+    debugLog("Restoring toggle state: enabled.");
+}
 
-                    // Add a click event listener to the frequency element
-                    frequencyElement.addEventListener('click', () => {
+// Function to ensure the existingDiv is created or updated
+function ensureExistingDiv(freq_save) {
+    let existingDiv = freqContainer.querySelector('.text-small.text-gray'); // Check if the div already exists
+
+    if (existingDiv) {
+        existingDiv.textContent = freq_save; // Update the existing div with the previous frequency
+    } else {
+        // Create a new div element for the previous frequency
+        existingDiv = document.createElement('div');
+        existingDiv.className = 'text-small text-gray hide-phone'; // Set the classes of the new div element
+        existingDiv.textContent = freq_save; // Set the text content of the new element to freq_save
+        freqContainer.insertBefore(existingDiv, frequencyElement); // Insert the new div before the frequency element
+    }
+
+    // Set visibility based on the toggle state
+    existingDiv.style.display = isToggleEnabled ? '' : 'none'; // Show or hide based on the toggle state
+    debugLog(isToggleEnabled ? "Showing existingDiv." : "Hiding existingDiv.");
+    return existingDiv; // Return the div for further use if needed
+}
+
+// Add long press event listener to freqContainer for toggling visibility and functionality
+freqContainer.addEventListener('mousedown', () => {
+    isLongPressTriggered = false; // Reset the flag on each mousedown
+    longPressTimer = setTimeout(() => {
+        isLongPressTriggered = true; // Set the flag to true after a long press
+        toggleFrequencyFunctions(); // Call the function to toggle visibility and functionality
+    }, longPressDuration); // Detect long press after 1 second
+});
+
+freqContainer.addEventListener('mouseup', () => {
+    clearTimeout(longPressTimer); // Clear the timer if mouse is released before long press
+});
+
+freqContainer.addEventListener('mouseleave', () => {
+    clearTimeout(longPressTimer); // Clear the timer if the mouse leaves the container before the press is complete
+});
+
+async function handleWebSocketMessage(event) {
+    try {
+        const data = JSON.parse(event.data); // Parse the incoming WebSocket message
+        picode = data.pi; // Extract pi code from data
+        freq = data.freq; // Extract frequency from data
+        itu = data.txInfo.itu; // Extract ITU information from transmission info
+        city = data.txInfo.city; // Extract city from transmission info
+        station = data.txInfo.tx; // Extract station from transmission info
+        distance = data.txInfo.dist; // Extract distance from transmission info
+        pol = data.txInfo.pol; // Extract polarization from transmission info
+        ps = data.ps; // Extract PS from data
+        stationid = data.txInfo.id; // Extract station ID from transmission info
+
+        // Check if the frequency has changed
+        if (freq !== previousFreq) {
+            if (frequencyElement) {
+                freq_save = previousFreq; // Save the previous frequency
+
+                // Ensure the existingDiv is created or updated
+                const existingDiv = ensureExistingDiv(freq_save);
+					if (freq_save !== null) {
+						existingDiv.style.marginBottom = '-20px'; // Add margin-bottom to the new element
+					}
+
+                // Add a click event listener to the frequency element
+                frequencyElement.addEventListener('click', () => {
+                    if (isToggleEnabled) { // Check if the toggle functionality is enabled
                         const dataToSend = `T${(parseFloat(freq_save) * 1000).toFixed(0)}`; // Prepare data to send via WebSocket
                         socket.send(dataToSend); // Send the data using the WebSocket
                         debugLog("WebSocket sending:", dataToSend); // Log the sent data
-                    });
-                } else {
-                    console.error('Element with ID "data-frequency" not found.'); // Log error if element is not found
-                }
+                    }
+                });
 
-                previousFreq = freq; // Update the previous frequency
-
-                isFirstUpdateAfterChange = true; // Set flag for the first update after frequency change
-
-                // Clear any existing timeout
-                if (timeoutId) {
-                    clearTimeout(timeoutId);
-                }
-
-                // Set a timeout to open or update the iframe
-                timeoutId = setTimeout(() => {
-                    openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
-                    isFirstUpdateAfterChange = false; // Reset the update flag
-                }, 1000);
-            } else if (!isFirstUpdateAfterChange) {
-                // If the frequency has not changed, just update the iframe
-                openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
+            } else {
+                console.error('Element with ID "data-frequency" not found.'); // Log error if element is not found
             }
-        } catch (error) {
-            console.error("Error processing the message:", error); // Log any errors that occur
+
+            previousFreq = freq; // Update the previous frequency
+
+            isFirstUpdateAfterChange = true; // Set flag for the first update after frequency change
+
+            // Clear any existing timeout
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+
+            // Set a timeout to open or update the iframe
+            timeoutId = setTimeout(() => {
+                openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
+                isFirstUpdateAfterChange = false; // Reset the update flag
+            }, 1000);
+        } else if (!isFirstUpdateAfterChange) {
+            // If the frequency has not changed, just update the iframe
+            openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
         }
+    } catch (error) {
+        console.error("Error processing the message:", error); // Log any errors that occur
+    }
+}
+
+// Function to toggle the visibility of newDivElement and the frequency toggle functionality
+function toggleFrequencyFunctions() {
+    const existingDiv = freqContainer.querySelector('.text-small.text-gray'); // Check if the div exists
+
+    if (existingDiv) {
+        if (isToggleEnabled) {
+            existingDiv.style.display = 'none'; // Hide the previous frequency div
+            debugLog("Toggling: hiding existingDiv.");
+        } else {
+            existingDiv.style.display = ''; // Show the previous frequency div
+            debugLog("Toggling: showing existingDiv.");
+        }
+    } else {
+        console.warn("existingDiv is null when toggling.");
     }
 
+    isToggleEnabled = !isToggleEnabled; // Toggle the flag to enable/disable the frequency toggle
+
+    // Save the current toggle state in localStorage
+    localStorage.setItem('toggleEnabled', isToggleEnabled); 
+    debugLog("Saved toggle state to localStorage:", isToggleEnabled);
+}
 
   // Function to add drag functionality to the iframe
 function addDragFunctionality(element) {
@@ -1501,6 +1576,7 @@ function addDragFunctionality(element) {
         resizer.style.right = '0';
         resizer.style.bottom = '0';
         resizer.style.zIndex = '1000';
+		resizer.title = 'Resize Window';
         element.appendChild(resizer);
 
         resizer.addEventListener('mousedown', initResize);
