@@ -5,11 +5,12 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 ![image](https://github.com/user-attachments/assets/a8e2919d-19d3-4336-b407-e71adb95db99)
 
 
+### v2.1e
 
-## v2.1d
+- activate/deactivate frequency toggling (pressing the frequency display for a longer time!)
+- location list is sorted by ERP
+- first load values been adjusted
 
-- Quickly jump to the previous frequency or toggle between two frequencies (click on the web server's frequency display)
-- Moving the map and table is limited to screen limits
 
 ## Installation notes:
 
@@ -31,6 +32,11 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 - Click on the web server's frequency display to quickly jump to the previous frequency or toggle between two frequencies
   
 ## History:
+
+### v2.1d
+
+- Quickly jump to the previous frequency or toggle between two frequencies (click on the web server's frequency display)
+- Moving the map and table is limited to screen limits
 
 ### v2.1c
 
