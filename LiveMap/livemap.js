@@ -2,7 +2,7 @@
 ///                                                      ///
 ///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1e)          ///
 ///                                                      ///
-///  by Highpoint                last update: 03.10.24   ///
+///  by Highpoint                last update: 04.10.24   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
@@ -26,7 +26,7 @@ let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10;
 let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
 (() => {
-    const plugin_version = 'V2.1e';
+    const plugin_version = 'V2.1f';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
@@ -44,6 +44,59 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
     // Add custom CSS styles
     const style = document.createElement('style');
     style.innerHTML = `
+.tooltip1 {
+    display: inline-block;
+    cursor: pointer;
+}
+
+.tooltip1::after {
+  content: attr(data-tooltip); /* Das Attribut verwenden */
+  position: absolute;
+  bottom: 100%; /* Tooltip oberhalb des Elements anzeigen */
+  transform: translateX(-100%);
+  background-color: var(--color-3);
+  color: var(--color-text);
+  padding: 5px 25px;
+  border-radius: 15px;
+  white-space: nowrap;
+  font-size: 14px;
+  opacity: 0;
+  z-index: 9999;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.tooltip1:hover::after {
+  opacity: 1;
+}
+
+.tooltip2 {
+    display: inline-block;
+    cursor: pointer;
+}
+
+.tooltip2::after {
+  content: attr(data-tooltip); /* Das Attribut verwenden */
+  position: absolute;
+  bottom: 100%; /* Tooltip oberhalb des Elements anzeigen */
+  transform: translateX(10%);
+  background-color: var(--color-3);
+  color: var(--color-text);
+  padding: 5px 25px;
+  border-radius: 15px;
+  white-space: nowrap;
+  font-size: 14px;
+  opacity: 0;
+  z-index: 9999;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.tooltip2:hover::after {
+  opacity: 1;
+}
+
+
 	
 body {
     margin: 0; /* Remove default margin */
@@ -233,6 +286,8 @@ body {
     // Function to create the toggle button
     function createToggleButton() {
         const toggleButton = document.createElement('div');
+		toggleButton.classList.add('tooltip2'); // Klasse hinzufügen
+		toggleButton.setAttribute('data-tooltip', 'Toggle Station List'); // Daten-Attribut setzen
         toggleButton.style.width = '10px';
         toggleButton.style.height = '10px';
         toggleButton.style.backgroundColor = 'red'; // Set the background color to red
@@ -241,9 +296,6 @@ body {
         toggleButton.style.left = '0px'; // Position from the left
         toggleButton.style.cursor = 'pointer';
         toggleButton.style.zIndex = '1000'; // Ensures the button is on top
-        toggleButton.title = 'Toggle Station List';
-		
-
 
         // Add the toggle functionality
         toggleButton.onclick = () => {
@@ -1109,13 +1161,13 @@ cityCells.forEach(cell => {
             emptyCell.style.height = '2px'; // Height of the empty row
             emptyRow.appendChild(emptyCell);
             table.appendChild(emptyRow);
-        });
-    };
-});
+			});
+		};
+	});
 
 	}
 
-// Function to open (or create) the IndexedDB database
+	// Function to open (or create) the IndexedDB database
     function openCacheDB() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open('apiCacheDB', 1);
@@ -1361,154 +1413,179 @@ cityCells.forEach(cell => {
         }
     }
 
-let previousFreq = null;
-let timeoutId = null;
-let isFirstUpdateAfterChange = false;
-let freq_save;
-let isToggleEnabled = true; // Flag to track if the toggle is enabled
-let longPressTimer = null; // Timer for detecting long press
-let longPressDuration = 1000; // Duration in milliseconds for long press (1 second)
-let isLongPressTriggered = false; // Flag to track whether long press was triggered
+    let previousFreq = null;
+    let timeoutId = null;
+    let isFirstUpdateAfterChange = false;
+    let freq_save;
+    let isToggleEnabled = true; // Flag to track if the toggle is enabled
+    let longPressTimer = null; // Timer for detecting long press
+    let longPressDuration = 1000; // Duration in milliseconds for long press (1 second)
+    let isLongPressTriggered = false; // Flag to track whether long press was triggered
 
-const freqContainer = document.getElementById('freq-container');
-freqContainer.title = "Toggle frequency - previous frequency | Hold longer for deactivating/activating";
+    // Find the element with the class "panel-33 hover-brighten" and the ID "freq-container"
+    let element = document.querySelector('div.panel-33.hover-brighten#freq-container');
 
-const frequencyElement = document.getElementById('data-frequency'); // Get the frequency element
+    // Check if the element was found
+    if (element) {
+        // Add the class "tooltip"
+        element.classList.add('tooltip');
 
-// Check localStorage for saved toggle state and restore it
-const savedToggleState = localStorage.getItem('toggleEnabled');
-debugLog("Loaded toggle state from localStorage:", savedToggleState);
+        // Add the "data-tooltip" attribute
+        element.setAttribute('data-tooltip', 'Toggle actual frequency - previous frequency  |  Hold longer for deactivating/activating');
+    }
 
-// Restore the toggle state if found
-if (savedToggleState === 'false') {
-    isToggleEnabled = false; // Restore the toggle state from localStorage
-	debugLog("Restoring toggle state: disabled.");
-} else {
-    debugLog("Restoring toggle state: enabled.");
-}
+    // Find the element with the ID "freq-container"
+    const freqContainer = document.getElementById('freq-container');
 
-// Function to ensure the existingDiv is created or updated
-function ensureExistingDiv(freq_save) {
-    let existingDiv = freqContainer.querySelector('.text-small.text-gray'); // Check if the div already exists
+    const frequencyElement = document.getElementById('data-frequency'); // Get the frequency element
 
-    if (existingDiv) {
-        existingDiv.textContent = freq_save; // Update the existing div with the previous frequency
+    // Check localStorage for saved toggle state and restore it
+    const savedToggleState = localStorage.getItem('toggleEnabled');
+    debugLog("Loaded toggle state from localStorage:", savedToggleState);
+
+    // Restore the toggle state if found
+    if (savedToggleState === 'false') {
+        isToggleEnabled = false; // Restore the toggle state from localStorage
+        debugLog("Restoring toggle state: disabled.");
     } else {
-        // Create a new div element for the previous frequency
-        existingDiv = document.createElement('div');
-        existingDiv.className = 'text-small text-gray hide-phone'; // Set the classes of the new div element
-        existingDiv.textContent = freq_save; // Set the text content of the new element to freq_save
-        freqContainer.insertBefore(existingDiv, frequencyElement); // Insert the new div before the frequency element
+        debugLog("Restoring toggle state: enabled.");
     }
 
-    // Set visibility based on the toggle state
-    existingDiv.style.display = isToggleEnabled ? '' : 'none'; // Show or hide based on the toggle state
-    debugLog(isToggleEnabled ? "Showing existingDiv." : "Hiding existingDiv.");
-    return existingDiv; // Return the div for further use if needed
-}
+    // Function to ensure the existingDiv is created or updated
+    function ensureExistingDiv(freq_save) {
+        let existingDiv = freqContainer.querySelector('.text-small.text-gray'); // Check if the div already exists
 
-// Add long press event listener to freqContainer for toggling visibility and functionality
-freqContainer.addEventListener('mousedown', () => {
-    isLongPressTriggered = false; // Reset the flag on each mousedown
-    longPressTimer = setTimeout(() => {
-        isLongPressTriggered = true; // Set the flag to true after a long press
-        toggleFrequencyFunctions(); // Call the function to toggle visibility and functionality
-    }, longPressDuration); // Detect long press after 1 second
-});
-
-freqContainer.addEventListener('mouseup', () => {
-    clearTimeout(longPressTimer); // Clear the timer if mouse is released before long press
-});
-
-freqContainer.addEventListener('mouseleave', () => {
-    clearTimeout(longPressTimer); // Clear the timer if the mouse leaves the container before the press is complete
-});
-
-async function handleWebSocketMessage(event) {
-    try {
-        const data = JSON.parse(event.data); // Parse the incoming WebSocket message
-        picode = data.pi; // Extract pi code from data
-        freq = data.freq; // Extract frequency from data
-        itu = data.txInfo.itu; // Extract ITU information from transmission info
-        city = data.txInfo.city; // Extract city from transmission info
-        station = data.txInfo.tx; // Extract station from transmission info
-        distance = data.txInfo.dist; // Extract distance from transmission info
-        pol = data.txInfo.pol; // Extract polarization from transmission info
-        ps = data.ps; // Extract PS from data
-        stationid = data.txInfo.id; // Extract station ID from transmission info
-
-        // Check if the frequency has changed
-        if (freq !== previousFreq) {
-            if (frequencyElement) {
-                freq_save = previousFreq; // Save the previous frequency
-
-                // Ensure the existingDiv is created or updated
-                const existingDiv = ensureExistingDiv(freq_save);
-					if (freq_save !== null) {
-						existingDiv.style.marginBottom = '-20px'; // Add margin-bottom to the new element
-					}
-
-                // Add a click event listener to the frequency element
-                frequencyElement.addEventListener('click', () => {
-                    if (isToggleEnabled) { // Check if the toggle functionality is enabled
-                        const dataToSend = `T${(parseFloat(freq_save) * 1000).toFixed(0)}`; // Prepare data to send via WebSocket
-                        socket.send(dataToSend); // Send the data using the WebSocket
-                        debugLog("WebSocket sending:", dataToSend); // Log the sent data
-                    }
-                });
-
-            } else {
-                console.error('Element with ID "data-frequency" not found.'); // Log error if element is not found
-            }
-
-            previousFreq = freq; // Update the previous frequency
-
-            isFirstUpdateAfterChange = true; // Set flag for the first update after frequency change
-
-            // Clear any existing timeout
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-            }
-
-            // Set a timeout to open or update the iframe
-            timeoutId = setTimeout(() => {
-                openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
-                isFirstUpdateAfterChange = false; // Reset the update flag
-            }, 1000);
-        } else if (!isFirstUpdateAfterChange) {
-            // If the frequency has not changed, just update the iframe
-            openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
-        }
-    } catch (error) {
-        console.error("Error processing the message:", error); // Log any errors that occur
-    }
-}
-
-// Function to toggle the visibility of newDivElement and the frequency toggle functionality
-function toggleFrequencyFunctions() {
-    const existingDiv = freqContainer.querySelector('.text-small.text-gray'); // Check if the div exists
-
-    if (existingDiv) {
-        if (isToggleEnabled) {
-            existingDiv.style.display = 'none'; // Hide the previous frequency div
-            debugLog("Toggling: hiding existingDiv.");
+        if (existingDiv) {
+            existingDiv.textContent = freq_save; // Update the existing div with the previous frequency
         } else {
-            existingDiv.style.display = ''; // Show the previous frequency div
-            debugLog("Toggling: showing existingDiv.");
+            // Create a new div element for the previous frequency
+            existingDiv = document.createElement('div');
+            existingDiv.className = 'text-small text-gray hide-phone'; // Set the classes of the new div element
+            existingDiv.textContent = freq_save; // Set the text content of the new element to freq_save
+            freqContainer.insertBefore(existingDiv, frequencyElement); // Insert the new div before the frequency element
         }
-    } else {
-        console.warn("existingDiv is null when toggling.");
+
+        // Set visibility based on the toggle state
+        existingDiv.style.display = isToggleEnabled ? '' : 'none'; // Show or hide based on the toggle state
+        debugLog(isToggleEnabled ? "Showing existingDiv." : "Hiding existingDiv.");
+        return existingDiv; // Return the div for further use if needed
     }
 
-    isToggleEnabled = !isToggleEnabled; // Toggle the flag to enable/disable the frequency toggle
+    // Add long press event listener to freqContainer for toggling visibility and functionality
+    freqContainer.addEventListener('mousedown', () => {
+        isLongPressTriggered = false; // Reset the flag on each mousedown
+        longPressTimer = setTimeout(() => {
+            isLongPressTriggered = true; // Set the flag to true after a long press
+            toggleFrequencyFunctions(); // Call the function to toggle visibility and functionality
+        }, longPressDuration); // Detect long press after 1 second
+    });
 
-    // Save the current toggle state in localStorage
-    localStorage.setItem('toggleEnabled', isToggleEnabled); 
-    debugLog("Saved toggle state to localStorage:", isToggleEnabled);
-}
+    freqContainer.addEventListener('mouseup', () => {
+        clearTimeout(longPressTimer); // Clear the timer if mouse is released before long press
+    });
 
-  // Function to add drag functionality to the iframe
-function addDragFunctionality(element) {
+    freqContainer.addEventListener('mouseleave', () => {
+        clearTimeout(longPressTimer); // Clear the timer if the mouse leaves the container before the press is complete
+    });
+
+    async function handleWebSocketMessage(event) {
+        try {
+            const data = JSON.parse(event.data); // Parse the incoming WebSocket message
+            picode = data.pi; // Extract pi code from data
+            freq = data.freq; // Extract frequency from data
+            itu = data.txInfo.itu; // Extract ITU information from transmission info
+            city = data.txInfo.city; // Extract city from transmission info
+            station = data.txInfo.tx; // Extract station from transmission info
+            distance = data.txInfo.dist; // Extract distance from transmission info
+            pol = data.txInfo.pol; // Extract polarization from transmission info
+            ps = data.ps; // Extract PS from data
+            stationid = data.txInfo.id; // Extract station ID from transmission info
+
+            // Check if the frequency has changed
+            if (freq !== previousFreq) {
+                if (frequencyElement) {
+                    freq_save = previousFreq; // Save the previous frequency
+
+                    // Ensure the existingDiv is created or updated
+                    const existingDiv = ensureExistingDiv(freq_save);
+                    if (freq_save !== null) {
+                        existingDiv.style.marginTop = '-7px'; // Adjust the top margin
+                        existingDiv.style.position = 'fixed'; // Set the position to fixed
+                        existingDiv.style.left = '50%'; // Center horizontally
+                        existingDiv.style.top = '50%'; // Center vertically
+                        existingDiv.style.transform = 'translate(-50%, -50%)'; // Adjust position back to center
+                    }
+                    
+                    let canSendData = true; // Flag to track if data can be sent
+
+                    // Add a click event listener to the frequency element
+                    frequencyElement.addEventListener('click', () => {
+                        if (isToggleEnabled && canSendData) { // Check if the toggle functionality is enabled and data can be sent
+                            const dataToSend = `T${(parseFloat(freq_save) * 1000).toFixed(0)}`; // Prepare data to send via WebSocket
+                            socket.send(dataToSend); // Send the data using the WebSocket
+                            debugLog("WebSocket sending:", dataToSend); // Log the sent data
+                            canSendData = false; // Set the flag to false to prevent further sends
+                        }
+                    });
+
+                    // Function to toggle visibility and functionality
+                    function toggleFrequencyFunctions() {
+                        isToggleEnabled = !isToggleEnabled; // Toggle the state
+                        canSendData = true; // Reset the sending flag when toggled
+                    }
+                } else {
+                    console.error('Element with ID "data-frequency" not found.'); // Log error if element is not found
+                }
+
+                previousFreq = freq; // Update the previous frequency
+
+                isFirstUpdateAfterChange = true; // Set flag for the first update after frequency change
+
+                // Clear any existing timeout
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+
+                // Set a timeout to open or update the iframe
+                timeoutId = setTimeout(() => {
+                    openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
+                    isFirstUpdateAfterChange = false; // Reset the update flag
+                }, 1000);
+            } else if (!isFirstUpdateAfterChange) {
+                // If the frequency has not changed, just update the iframe
+                openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
+            }
+        } catch (error) {
+            console.error("Error processing the message:", error); // Log any errors that occur
+        }
+    }
+
+
+    // Function to toggle the visibility of newDivElement and the frequency toggle functionality
+    function toggleFrequencyFunctions() {
+        const existingDiv = freqContainer.querySelector('.text-small.text-gray'); // Check if the div exists
+
+        if (existingDiv) {
+            if (isToggleEnabled) {
+                existingDiv.style.display = 'none'; // Hide the previous frequency div
+                debugLog("Toggling: hiding existingDiv.");
+            } else {
+                existingDiv.style.display = ''; // Show the previous frequency div
+                debugLog("Toggling: showing existingDiv.");
+            }
+        } else {
+            console.warn("existingDiv is null when toggling.");
+        }
+
+        isToggleEnabled = !isToggleEnabled; // Toggle the flag to enable/disable the frequency toggle
+
+        // Save the current toggle state in localStorage
+        localStorage.setItem('toggleEnabled', isToggleEnabled); 
+        debugLog("Saved toggle state to localStorage:", isToggleEnabled);
+    }
+
+	// Function to add drag functionality to the iframe
+	function addDragFunctionality(element) {
     let offsetX = 0, offsetY = 0, startX = 0, startY = 0;
 
     element.onmousedown = function(e) {
@@ -1568,6 +1645,8 @@ function addDragFunctionality(element) {
     function addResizeFunctionality(element) {
         const resizer = document.createElement('div');
         resizer.id = 'resizer';
+        resizer.classList.add('tooltip1'); // Klasse hinzufügen
+        resizer.setAttribute('data-tooltip', 'Resize Window'); // Daten-Attribut setzen
         resizer.style.width = '10px';
         resizer.style.height = '10px';
         resizer.style.background = 'blue';
@@ -1576,7 +1655,6 @@ function addDragFunctionality(element) {
         resizer.style.right = '0';
         resizer.style.bottom = '0';
         resizer.style.zIndex = '1000';
-		resizer.title = 'Resize Window';
         element.appendChild(resizer);
 
         resizer.addEventListener('mousedown', initResize);
@@ -1618,144 +1696,142 @@ function addDragFunctionality(element) {
         }
     }
 
-function initializeLiveMapButton() {
-    const buttonWrapper = document.getElementById('button-wrapper');
-    const LiveMapButton = document.createElement('button');
+    function initializeLiveMapButton() {
+        const buttonWrapper = document.getElementById('button-wrapper');
+        const LiveMapButton = document.createElement('button');
 
-    LiveMapButton.id = 'LIVEMAP-on-off';
-    LiveMapButton.classList.add('hide-phone');
-    LiveMapButton.setAttribute('aria-label', 'LIVEMAP');
-    LiveMapButton.setAttribute('data-tooltip', 'LIVEMAP on/off');
-    LiveMapButton.innerHTML = '<strong>LIVEMAP</strong>';
-    LiveMapButton.style.marginTop = '16px';
-    LiveMapButton.style.width = '100px';
-    LiveMapButton.classList.add('bg-color-2');
-    LiveMapButton.style.borderRadius = '0px';
-    LiveMapButton.title = `Plugin Version: ${plugin_version}`;
+        LiveMapButton.id = 'LIVEMAP-on-off';
+        LiveMapButton.classList.add('hide-phone');
+        LiveMapButton.setAttribute('aria-label', 'LIVEMAP');
+        LiveMapButton.setAttribute('data-tooltip', 'LIVEMAP on/off');
+        LiveMapButton.innerHTML = '<strong>LIVEMAP</strong>';
+        LiveMapButton.style.marginTop = '16px';
+        LiveMapButton.style.width = '100px';
+        LiveMapButton.classList.add('bg-color-2');
+        LiveMapButton.style.borderRadius = '0px';
+        LiveMapButton.title = `Plugin Version: ${plugin_version}`;
 
-    let isLongPress = false;
-    let clickTimeout;
+        let isLongPress = false;
+        let clickTimeout;
 
-    LiveMapButton.addEventListener('mousedown', (event) => {
-        isLongPress = false; // Reset long press state
-        clickTimeout = setTimeout(() => {
-            isLongPress = true; // Mark as long press
-        }, 300); // 300 ms threshold for long press
-    });
+        LiveMapButton.addEventListener('mousedown', (event) => {
+            isLongPress = false; // Reset long press state
+            clickTimeout = setTimeout(() => {
+                isLongPress = true; // Mark as long press
+            }, 300); // 300 ms threshold for long press
+        });
 
-    LiveMapButton.addEventListener('mouseup', (event) => {
-        clearTimeout(clickTimeout); // Clear timeout on mouseup
+        LiveMapButton.addEventListener('mouseup', (event) => {
+            clearTimeout(clickTimeout); // Clear timeout on mouseup
 
-        // Only toggle if it was a short click
-        if (!isLongPress) {
-            LiveMapActive = !LiveMapActive;
-            if (LiveMapActive) {
-                LiveMapButton.classList.remove('bg-color-2');
-                LiveMapButton.classList.add('bg-color-4');
-                debugLog("LIVEMAP activated.");
+            // Only toggle if it was a short click
+            if (!isLongPress) {
+                LiveMapActive = !LiveMapActive;
+                if (LiveMapActive) {
+                    LiveMapButton.classList.remove('bg-color-2');
+                    LiveMapButton.classList.add('bg-color-4');
+                    debugLog("LIVEMAP activated.");
 
-                lastPicode = '?';
-                lastFreq = '0.0';
-                lastStationId = null;
+                    lastPicode = '?';
+                    lastFreq = '0.0';
+                    lastStationId = null;
 
-                openOrUpdateIframe(lastPicode, lastFreq, lastStationId);
+                    openOrUpdateIframe(lastPicode, lastFreq, lastStationId);
 
-                setTimeout(() => {
-                    const storedVisibility = localStorage.getItem('stationListVisible');
+                    setTimeout(() => {
+                        const storedVisibility = localStorage.getItem('stationListVisible');
 
-                    if (stationListContainer) {
-                        if (storedVisibility === 'hidden') {
-                            stationListContainer.style.opacity = '0';
-                            stationListContainer.style.visibility = 'hidden';
-                        } else {
-                            stationListContainer.style.opacity = '1';
-                            stationListContainer.style.visibility = 'visible';
-                            stationListContainer.classList.remove('fade-out');
-                            stationListContainer.classList.add('fade-in');
+                        if (stationListContainer) {
+                            if (storedVisibility === 'hidden') {
+                                stationListContainer.style.opacity = '0';
+                                stationListContainer.style.visibility = 'hidden';
+                            } else {
+                                stationListContainer.style.opacity = '1';
+                                stationListContainer.style.visibility = 'visible';
+                                stationListContainer.classList.remove('fade-out');
+                                stationListContainer.classList.add('fade-in');
+                            }
                         }
-                    }
-                }, 200);
-            } else {
-                LiveMapButton.classList.remove('bg-color-4');
-                LiveMapButton.classList.add('bg-color-2');
-                debugLog("LIVEMAP deactivated.");
+                    }, 200);
+                } else {
+                    LiveMapButton.classList.remove('bg-color-4');
+                    LiveMapButton.classList.add('bg-color-2');
+                    debugLog("LIVEMAP deactivated.");
 
-                if (iframeContainer) {
-                    iframeLeft = parseInt(iframeContainer.style.left);
-                    iframeTop = parseInt(iframeContainer.style.top);
-                    iframeWidth = parseInt(iframeContainer.style.width);
-                    iframeHeight = parseInt(iframeContainer.style.height);
+                    if (iframeContainer) {
+                        iframeLeft = parseInt(iframeContainer.style.left);
+                        iframeTop = parseInt(iframeContainer.style.top);
+                        iframeWidth = parseInt(iframeContainer.style.width);
+                        iframeHeight = parseInt(iframeContainer.style.height);
 
-                    localStorage.setItem('iframeLeft', iframeLeft);
-                    localStorage.setItem('iframeTop', iframeTop);
-                    localStorage.setItem('iframeWidth', iframeWidth);
-                    localStorage.setItem('iframeHeight', iframeHeight);
+                        localStorage.setItem('iframeLeft', iframeLeft);
+                        localStorage.setItem('iframeTop', iframeTop);
+                        localStorage.setItem('iframeWidth', iframeWidth);
+                        localStorage.setItem('iframeHeight', iframeHeight);
 
-                    const iframes = document.querySelectorAll('iframe');
-                    iframes.forEach(iframe => {
-                        iframe.style.opacity = '0';
-                        iframe.style.transition = 'opacity 0.5s';
-                    });
+                        const iframes = document.querySelectorAll('iframe');
+                        iframes.forEach(iframe => {
+                            iframe.style.opacity = '0';
+                            iframe.style.transition = 'opacity 0.5s';
+                        });
 
-                    if (stationListContainer) {
-                        stationListContainer.classList.remove('fade-in');
-                        stationListContainer.classList.add('fade-out');
-                        stationListContainer.addEventListener('animationend', function handler() {
-                            stationListContainer.style.opacity = '0';
-                            stationListContainer.style.visibility = 'hidden';
-                            stationListContainer.removeEventListener('animationend', handler);
+                        if (stationListContainer) {
+                            stationListContainer.classList.remove('fade-in');
+                            stationListContainer.classList.add('fade-out');
+                            stationListContainer.addEventListener('animationend', function handler() {
+                                stationListContainer.style.opacity = '0';
+                                stationListContainer.style.visibility = 'hidden';
+                                stationListContainer.removeEventListener('animationend', handler);
+                            });
+                        }
+
+                        iframeContainer.classList.add('fade-out');
+                        iframeContainer.addEventListener('animationend', function handler() {
+                            document.body.removeChild(iframeContainer);
+                            iframeContainer = null;
+                            iframeContainer.removeEventListener('animationend', handler);
                         });
                     }
-
-                    iframeContainer.classList.add('fade-out');
-                    iframeContainer.addEventListener('animationend', function handler() {
-                        document.body.removeChild(iframeContainer);
-                        iframeContainer = null;
-                        iframeContainer.removeEventListener('animationend', handler);
-                    });
                 }
             }
-        }
-    });
+        });
 
-    LiveMapButton.addEventListener('mouseleave', () => {
-        clearTimeout(clickTimeout); // Clear timeout if the mouse leaves the button
-    });
+        LiveMapButton.addEventListener('mouseleave', () => {
+            clearTimeout(clickTimeout); // Clear timeout if the mouse leaves the button
+        });
 
-    if (buttonWrapper) {
-        LiveMapButton.style.marginLeft = '5px';
-        buttonWrapper.appendChild(LiveMapButton);
-        debugLog('LIVEMAP button successfully added to button-wrapper.');
-    } else {
-        console.error('buttonWrapper element not found. Adding LIVEMAP button to default location.');
-        const wrapperElement = document.querySelector('.tuner-info');
-
-        if (wrapperElement) {
-            const buttonWrapper = document.createElement('div');
-            buttonWrapper.classList.add('button-wrapper');
-            buttonWrapper.id = 'button-wrapper';
+        if (buttonWrapper) {
+            LiveMapButton.style.marginLeft = '5px';
             buttonWrapper.appendChild(LiveMapButton);
-            wrapperElement.appendChild(buttonWrapper);
-            const emptyLine = document.createElement('br');
-            wrapperElement.appendChild(emptyLine);
+            debugLog('LIVEMAP button successfully added to button-wrapper.');
         } else {
-            console.error('Default location not found. Unable to add LIVEMAP button.');
-        }
-    }
+            console.error('buttonWrapper element not found. Adding LIVEMAP button to default location.');
+            const wrapperElement = document.querySelector('.tuner-info');
 
-    LiveMapActive = false;
-    LiveMapButton.classList.remove('bg-color-4');
-    LiveMapButton.classList.add('bg-color-2');
-    debugLog("LIVEMAP deactivated (default status).");
-}
+            if (wrapperElement) {
+                const buttonWrapper = document.createElement('div');
+                buttonWrapper.classList.add('button-wrapper');
+                buttonWrapper.id = 'button-wrapper';
+                buttonWrapper.appendChild(LiveMapButton);
+                wrapperElement.appendChild(buttonWrapper);
+                const emptyLine = document.createElement('br');
+                wrapperElement.appendChild(emptyLine);
+            } else {
+                console.error('Default location not found. Unable to add LIVEMAP button.');
+            }
+        }
+
+        LiveMapActive = false;
+        LiveMapButton.classList.remove('bg-color-4');
+        LiveMapButton.classList.add('bg-color-2');
+        debugLog("LIVEMAP deactivated (default status).");
+    }
 
     setupWebSocket();
 
     document.addEventListener('DOMContentLoaded', function() {
         setTimeout(initializeLiveMapButton, 1000);
     });
-	
 })();
-
 
 
