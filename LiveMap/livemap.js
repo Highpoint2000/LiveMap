@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1f)          ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.2)          ///
 ///                                                      ///
 ///  by Highpoint                last update: 28.10.24   ///
 ///                                                      ///
@@ -552,7 +552,7 @@ body {
         input.addEventListener('change', async function() {
             if (this.checked) {
                 if (!stationid) {
-                    sendToast('warning', 'Live Map', 'TXPOS can only be activated when a station is recognized', false, false);    
+                    //sendToast('warning', 'Live Map', 'TXPOS can only be activated when a station is recognized', false, false);    
                     this.checked = false;
                     return;
                 }
@@ -560,7 +560,7 @@ body {
                 localStorage.setItem('txposLat', latTX);
                 localStorage.setItem('txposLon', lonTX);
                 debugLog(`LIVEMAP TXPOS activated: LAT = ${lat}, LON = ${lon}`);
-                sendToast('info', 'Live Map', `TXPOS activated: ${city}[${itu}]`, true, false);    
+                //sendToast('info', 'Live Map', `TXPOS activated: ${city}[${itu}]`, true, false);    
             } else {
                 localStorage.removeItem('txposLat');
                 localStorage.removeItem('txposLon');
@@ -789,9 +789,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
             return distA - distB;
         });
 
-        const filteredStations = stationsWithCoordinates.filter(station => {
-			
-			
+        const filteredStations = stationsWithCoordinates.filter(station => {		
         
             if (stationid) {
                 return station.id === stationid;
@@ -814,147 +812,152 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
         table.style.textAlign = 'left';
 
         filteredStations.forEach(({ station, city, lat, lon, pi, erp, id, itu }) => {
-            const row = document.createElement('tr');
-            row.style.margin = '0';
-            row.style.padding = '0';
-
-            if (station.id === stationid) {
-                row.classList.add('bg-color-1');
-            } else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
-                row.classList.add('bg-color-1');
-            }
-
-            const streamCell = document.createElement('td');
-            const streamLink = document.createElement('a');
-            const playIcon = document.createElement('i');
-            playIcon.className = 'fas fa-play';
-            playIcon.style.color = 'green';
-            playIcon.style.cursor = 'pointer';
-
-            streamLink.appendChild(playIcon);
-            streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
-            streamLink.style.color = 'green';
-            streamLink.style.textDecoration = 'none';
-            streamLink.title = 'play livestream';
-            streamCell.appendChild(streamLink);
-            streamCell.style.paddingLeft = '10px';
-            streamCell.style.paddingRight = '10px';
-			streamCell.style.width = '5px';
-			streamCell.style.maxWidth = '5px';
-            streamCell.style.textAlign = 'left';
-            row.appendChild(streamCell);
-
-            const freqCell = document.createElement('td');
-            freqCell.innerText = `${station.freq.toFixed(2)} MHz`;
-            freqCell.style.maxWidth = '100px';
-			freqCell.style.width = '100px';
-            freqCell.style.paddingLeft = '5px';
-			freqCell.style.paddingRight = '25px';
-            freqCell.style.color = 'white';
-            freqCell.style.textAlign = 'right';
-            freqCell.style.overflow = 'hidden';
-            freqCell.style.whiteSpace = 'nowrap';
-            freqCell.style.textOverflow = 'ellipsis';
-            row.appendChild(freqCell);
-
-            const piCell = document.createElement('td');
-			if (station.pi) {
-				piCell.innerText = pi;
-			}
-            piCell.style.maxWidth = '70px';
-			piCell.style.width = '70px';
-            piCell.style.paddingLeft = '5px';
-			piCell.style.paddingRight = '25px';
-            piCell.style.color = 'white';
-			piCell.style.textAlign = 'right';
-            piCell.style.overflow = 'hidden';
-            piCell.style.whiteSpace = 'nowrap';
-            piCell.style.textOverflow = 'ellipsis';
-            row.appendChild(piCell);
-
-            const stationCell = document.createElement('td');
-            stationCell.innerText = station.station;
-            stationCell.style.maxWidth = '160px';
-			stationCell.style.width = '160px';
-            stationCell.style.paddingLeft = '5px';
-            stationCell.style.paddingRight = '5px';
-            stationCell.style.color = 'white';
-			stationCell.style.textAlign = 'left';
-            stationCell.style.overflow = 'hidden';
-            stationCell.style.whiteSpace = 'nowrap';
-            stationCell.style.textOverflow = 'ellipsis';
-            row.appendChild(stationCell);
-
-            const cityCell = document.createElement('td');
-            cityCell.innerText = `${city} [${itu}]`;
-            cityCell.style.maxWidth = '160px';
-			cityCell.style.width = '160px';
-            cityCell.style.paddingLeft = '5px';
-			cityCell.style.paddingRight = '5px';
-            cityCell.title = 'open location list';
-            cityCell.style.color = 'white';
-			cityCell.style.textAlign = 'left';
-            cityCell.style.overflow = 'hidden';
-            cityCell.style.whiteSpace = 'nowrap';
-            cityCell.style.textOverflow = 'ellipsis';
-            cityCell.style.cursor = 'pointer';
-            row.appendChild(cityCell);
-
-            cityCell.addEventListener('mouseover', () => {
-                cityCell.style.textDecoration = 'underline';
-                cityCell.style.color = 'var(--color-5)';
-            });
-
-            cityCell.addEventListener('mouseout', () => {
-                cityCell.style.textDecoration = 'none';
-                cityCell.style.color = 'white';
-            });
-					
-			const polCell = document.createElement('td');
-            polCell.innerText = `${station.pol.substring(0, 1)}`;
-            polCell.style.maxWidth = '1px';
-			polCell.style.width = '1px';
-            polCell.style.paddingLeft = '5px';
-            polCell.style.paddingRight = '15px';
-            polCell.style.color = 'white';
-            polCell.style.textAlign = 'right';       
-			row.appendChild(polCell);
-
-            const erpCell = document.createElement('td');
-            erpCell.innerText = `${erp.toFixed(2)} kW`;
-            erpCell.style.maxWidth = '100px';
-			erpCell.style.width = '100px';
-            erpCell.style.paddingLeft = '5px';
-            erpCell.style.paddingRight = '5px';
-            erpCell.style.color = 'white';
-            erpCell.style.textAlign = 'right';
-            erpCell.style.overflow = 'hidden';
-            erpCell.style.whiteSpace = 'nowrap';
-            erpCell.style.textOverflow = 'ellipsis';
-
-            if (erp < 0.5) {
-                // ERP less than 0.5 kW, set background color to purple
-                erpCell.style.backgroundColor = '#7800FF';
-            } else if (erp >= 0.5 && erp < 5.0) {
-                // ERP between 0.5 kW and 5.0 kW, set background color to blue
-                erpCell.style.backgroundColor = '#238BFF';
-            } else if (erp >= 5.0) {
-                // ERP greater than or equal to 5.0 kW, set background color to dark blue
-                erpCell.style.backgroundColor = '#0000FF';
-            }
-
-            // Append the ERP cell to the row
-            row.appendChild(erpCell);
-            
-            // Append the row to the table
-            table.appendChild(row);
 			
-			const emptyRow = document.createElement('tr');
-			const emptyCell = document.createElement('td');
-			emptyCell.colSpan = 7; // Anzahl der Spalten anpassen
-			emptyCell.style.height = '2px'; // Höhe der Leerzeile
-			emptyRow.appendChild(emptyCell);
-			table.appendChild(emptyRow);
+			if (station.pi || parseFloat(station.freq) < 74.00) {
+            
+				const row = document.createElement('tr');
+				row.style.margin = '0';
+				row.style.padding = '0';
+
+				if (station.id === stationid) {
+					row.classList.add('bg-color-1');
+				} else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
+					row.classList.add('bg-color-1');
+				}
+
+				const streamCell = document.createElement('td');
+				const streamLink = document.createElement('a');
+				const playIcon = document.createElement('i');
+				playIcon.className = 'fas fa-play';
+				playIcon.style.color = 'green';
+				playIcon.style.cursor = 'pointer';
+				
+				streamLink.appendChild(playIcon);
+				streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
+				streamLink.style.color = 'green';
+				streamLink.style.textDecoration = 'none';
+				streamLink.title = 'play livestream';
+				streamCell.appendChild(streamLink);
+				streamCell.style.paddingLeft = '10px';
+				streamCell.style.paddingRight = '10px';
+				streamCell.style.width = '5px';
+				streamCell.style.maxWidth = '5px';
+				streamCell.style.textAlign = 'left';
+				row.appendChild(streamCell);
+
+				const freqCell = document.createElement('td');
+				freqCell.innerText = `${station.freq.toFixed(2)} MHz`;
+				freqCell.style.maxWidth = '100px';
+				freqCell.style.width = '100px';
+				freqCell.style.paddingLeft = '5px';
+				freqCell.style.paddingRight = '25px';
+				freqCell.style.color = 'white';
+				freqCell.style.textAlign = 'right';
+				freqCell.style.overflow = 'hidden';
+				freqCell.style.whiteSpace = 'nowrap';
+				freqCell.style.textOverflow = 'ellipsis';
+				row.appendChild(freqCell);
+
+				const piCell = document.createElement('td');
+				if (station.pi) {
+					piCell.innerText = pi;
+				}
+				piCell.style.maxWidth = '70px';
+				piCell.style.width = '70px';
+				piCell.style.paddingLeft = '5px';
+				piCell.style.paddingRight = '25px';
+				piCell.style.color = 'white';
+				piCell.style.textAlign = 'right';
+				piCell.style.overflow = 'hidden';
+				piCell.style.whiteSpace = 'nowrap';
+				piCell.style.textOverflow = 'ellipsis';
+				row.appendChild(piCell);
+
+				const stationCell = document.createElement('td');
+				stationCell.innerText = station.station;
+				stationCell.style.maxWidth = '160px';
+				stationCell.style.width = '160px';
+				stationCell.style.paddingLeft = '5px';
+				stationCell.style.paddingRight = '5px';
+				stationCell.style.color = 'white';
+				stationCell.style.textAlign = 'left';
+				stationCell.style.overflow = 'hidden';
+				stationCell.style.whiteSpace = 'nowrap';
+				stationCell.style.textOverflow = 'ellipsis';
+				row.appendChild(stationCell);
+
+				const cityCell = document.createElement('td');
+				cityCell.innerText = `${city} [${itu}]`;
+				cityCell.style.maxWidth = '160px';
+				cityCell.style.width = '160px';
+				cityCell.style.paddingLeft = '5px';
+				cityCell.style.paddingRight = '5px';
+				cityCell.title = 'open location list';
+				cityCell.style.color = 'white';
+				cityCell.style.textAlign = 'left';
+				cityCell.style.overflow = 'hidden';
+				cityCell.style.whiteSpace = 'nowrap';
+				cityCell.style.textOverflow = 'ellipsis';
+				cityCell.style.cursor = 'pointer';
+				row.appendChild(cityCell);
+
+				cityCell.addEventListener('mouseover', () => {
+					cityCell.style.textDecoration = 'underline';
+					cityCell.style.color = 'var(--color-5)';
+				});
+
+				cityCell.addEventListener('mouseout', () => {
+					cityCell.style.textDecoration = 'none';
+					cityCell.style.color = 'white';
+				});
+					
+				const polCell = document.createElement('td');
+				polCell.innerText = `${station.pol.substring(0, 1)}`;
+				polCell.style.maxWidth = '1px';
+				polCell.style.width = '1px';
+				polCell.style.paddingLeft = '5px';
+				polCell.style.paddingRight = '15px';
+				polCell.style.color = 'white';
+				polCell.style.textAlign = 'right';       
+				row.appendChild(polCell);
+
+				const erpCell = document.createElement('td');
+				erpCell.innerText = `${erp.toFixed(2)} kW`;
+				erpCell.style.maxWidth = '100px';
+				erpCell.style.width = '100px';
+				erpCell.style.paddingLeft = '5px';
+				erpCell.style.paddingRight = '5px';
+				erpCell.style.color = 'white';
+				erpCell.style.textAlign = 'right';
+				erpCell.style.overflow = 'hidden';
+				erpCell.style.whiteSpace = 'nowrap';
+				erpCell.style.textOverflow = 'ellipsis';
+
+				if (erp < 0.5) {
+					// ERP less than 0.5 kW, set background color to purple
+					erpCell.style.backgroundColor = '#7800FF';
+				} else if (erp >= 0.5 && erp < 5.0) {
+					// ERP between 0.5 kW and 5.0 kW, set background color to blue
+					erpCell.style.backgroundColor = '#238BFF';
+				} else if (erp >= 5.0) {
+					// ERP greater than or equal to 5.0 kW, set background color to dark blue
+					erpCell.style.backgroundColor = '#0000FF';
+				}
+
+				// Append the ERP cell to the row
+				row.appendChild(erpCell);
+            
+				// Append the row to the table
+				table.appendChild(row);
+			
+				const emptyRow = document.createElement('tr');
+				const emptyCell = document.createElement('td');
+				emptyCell.colSpan = 7; // Anzahl der Spalten anpassen
+				emptyCell.style.height = '2px'; // Höhe der Leerzeile
+				emptyRow.appendChild(emptyCell);
+				table.appendChild(emptyRow);
+				
+			}
 			
         });
 
@@ -962,418 +965,424 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
         stationListContainer.appendChild(table);
         stationListContainer.style.width = `${iframeContainer.offsetWidth}px`;
 
-// Allow clicking on the city cells to display more stations from the same city
-const cityCells = table.querySelectorAll('td:nth-child(5)');
-cityCells.forEach(cell => {
-    cell.style.cursor = 'pointer';
-	if (picode !== '?' && foundPI) {
-		const cityToDisplay = cell.innerText.split(' [')[0]; // Define cityToDisplay here
+		// Allow clicking on the city cells to display more stations from the same city
+		const cityCells = table.querySelectorAll('td:nth-child(5)');
+		cityCells.forEach(cell => {
+			cell.style.cursor = 'pointer';
+			
+			if (picode !== '?' && foundPI) {
+				
+				const cityToDisplay = cell.innerText.split(' [')[0]; // Define cityToDisplay here
+				const cityStation = allStations.find(station => station.city === cityToDisplay);
+				
+				if (!cityStation  && !station.pi) {
+					console.warn('City not found:', cityToDisplay);
+					return;
+				}
 
-        const cityStation = allStations.find(station => station.city === cityToDisplay);
-        if (!cityStation) {
-            console.warn('City not found:', cityToDisplay);
-            return;
-        }
+				const distanceToCity = calculateDistance(txposLat, txposLon, cityStation.lat, cityStation.lon);
 
-        const distanceToCity = calculateDistance(txposLat, txposLon, cityStation.lat, cityStation.lon);
+				// Filter and sort the stations of the selected city by ERP in descending order
+				const stationsOfCity = allStations
+					.filter(station => station.city === cityToDisplay)
+					.sort((a, b) => b.erp - a.erp); // Sorting in descending order based on ERP
 
-        // Filter and sort the stations of the selected city by ERP in descending order
-        const stationsOfCity = allStations
-            .filter(station => station.city === cityToDisplay)
-            .sort((a, b) => b.erp - a.erp); // Sorting in descending order based on ERP
+				// Clear the table before displaying stations from the selected city
+				table.innerHTML = '';
 
-        // Clear the table before displaying stations from the selected city
-        table.innerHTML = '';
+				// Iterate through the stations from the same city and create table rows
+				stationsOfCity.forEach(({ station, city, distance, pi, erp, id, itu }) => {
+				if (station.pi || parseFloat(station.freq) < 74.00) {
+					const row = document.createElement('tr');
 
-        // Iterate through the stations from the same city and create table rows
-        stationsOfCity.forEach(({ station, city, distance, pi, erp, id, itu }) => {
-            const row = document.createElement('tr');
+					// Highlight the row if it's the current station
+					if (station.id === stationid) {
+						row.classList.add('bg-color-1');
+					} else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
+						row.classList.add('bg-color-1');
+					}
 
-            // Highlight the row if it's the current station
-            if (station.id === stationid) {
-                row.classList.add('bg-color-1');
-            } else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
-                row.classList.add('bg-color-1');
-            }
+					// Create a cell with a link to the station stream
+					const streamCell = document.createElement('td');
+					const streamLink = document.createElement('a');
+					const playIcon = document.createElement('i');
+					playIcon.className = 'fas fa-play';
+					playIcon.style.color = 'green';
+					playIcon.style.cursor = 'pointer';
 
-            // Create a cell with a link to the station stream
-            const streamCell = document.createElement('td');
-            const streamLink = document.createElement('a');
-            const playIcon = document.createElement('i');
-            playIcon.className = 'fas fa-play';
-            playIcon.style.color = 'green';
-            playIcon.style.cursor = 'pointer';
+					streamLink.appendChild(playIcon);
+					streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
+					streamLink.style.color = 'green';
+					streamLink.style.textDecoration = 'none';
+					streamLink.title = 'play livestream';
+					streamCell.appendChild(streamLink);
+					streamCell.style.paddingLeft = '10px';
+					streamCell.style.paddingRight = '10px';
+					streamCell.style.width = '5px';
+					streamCell.style.maxWidth = '5px';
+					streamCell.style.textAlign = 'left';
+					row.appendChild(streamCell);
 
-            streamLink.appendChild(playIcon);
-            streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
-            streamLink.style.color = 'green';
-            streamLink.style.textDecoration = 'none';
-            streamLink.title = 'play livestream';
-            streamCell.appendChild(streamLink);
-            streamCell.style.paddingLeft = '10px';
-            streamCell.style.paddingRight = '10px';
-            streamCell.style.width = '5px';
-            streamCell.style.maxWidth = '5px';
-            streamCell.style.textAlign = 'left';
-            row.appendChild(streamCell);
+					const freqCellStation = document.createElement('td');
+					freqCellStation.innerText = `${station.freq.toFixed(2)} MHz`;
+					freqCellStation.style.maxWidth = '100px';
+					freqCellStation.style.width = '100px';
+					freqCellStation.style.paddingLeft = '5px';
+					freqCellStation.style.paddingRight = '25px';
+					freqCellStation.style.color = 'white';
+					freqCellStation.style.textAlign = 'right';
+					freqCellStation.style.overflow = 'hidden';
+					freqCellStation.style.whiteSpace = 'nowrap';
+					freqCellStation.style.textOverflow = 'ellipsis';
+					freqCellStation.style.cursor = 'pointer';
+					row.appendChild(freqCellStation);
 
-            const freqCellStation = document.createElement('td');
-            freqCellStation.innerText = `${station.freq.toFixed(2)} MHz`;
-            freqCellStation.style.maxWidth = '100px';
-            freqCellStation.style.width = '100px';
-            freqCellStation.style.paddingLeft = '5px';
-            freqCellStation.style.paddingRight = '25px';
-            freqCellStation.style.color = 'white';
-            freqCellStation.style.textAlign = 'right';
-            freqCellStation.style.overflow = 'hidden';
-            freqCellStation.style.whiteSpace = 'nowrap';
-            freqCellStation.style.textOverflow = 'ellipsis';
-            freqCellStation.style.cursor = 'pointer';
-            row.appendChild(freqCellStation);
+					// Add hover effect and click event for sending frequency data over WebSocket
+					freqCellStation.addEventListener('mouseover', () => {
+						freqCellStation.style.textDecoration = 'underline';
+						freqCellStation.style.color = 'var(--color-4)';
+					});
 
-            // Add hover effect and click event for sending frequency data over WebSocket
-            freqCellStation.addEventListener('mouseover', () => {
-                freqCellStation.style.textDecoration = 'underline';
-                freqCellStation.style.color = 'var(--color-4)';
-            });
+					freqCellStation.addEventListener('mouseout', () => {
+						freqCellStation.style.textDecoration = 'none';
+						freqCellStation.style.color = 'white';
+					});
 
-            freqCellStation.addEventListener('mouseout', () => {
-                freqCellStation.style.textDecoration = 'none';
-                freqCellStation.style.color = 'white';
-            });
+					freqCellStation.onclick = () => {
+						const dataToSend = `T${(parseFloat(station.freq) * 1000).toFixed(0)}`;
+						socket.send(dataToSend);
+						debugLog("WebSocket sending:", dataToSend);
+					};
 
-            freqCellStation.onclick = () => {
-                const dataToSend = `T${(parseFloat(station.freq) * 1000).toFixed(0)}`;
-                socket.send(dataToSend);
-                debugLog("WebSocket sending:", dataToSend);
-            };
+					const piCell = document.createElement('td');
+					if (station.pi) {
+						piCell.innerText = pi;
+					}
+					piCell.style.maxWidth = '70px';
+					piCell.style.width = '70px';
+					piCell.style.paddingLeft = '5px';
+					piCell.style.paddingRight = '25px';
+					piCell.style.color = 'white';
+					piCell.style.textAlign = 'right';
+					piCell.style.overflow = 'hidden';
+					piCell.style.whiteSpace = 'nowrap';
+					piCell.style.textOverflow = 'ellipsis';
+					row.appendChild(piCell);
 
-            const piCell = document.createElement('td');
-            if (station.pi) {
-                piCell.innerText = pi;
-            }
-            piCell.style.maxWidth = '70px';
-            piCell.style.width = '70px';
-            piCell.style.paddingLeft = '5px';
-            piCell.style.paddingRight = '25px';
-            piCell.style.color = 'white';
-            piCell.style.textAlign = 'right';
-            piCell.style.overflow = 'hidden';
-            piCell.style.whiteSpace = 'nowrap';
-            piCell.style.textOverflow = 'ellipsis';
-            row.appendChild(piCell);
+					const stationCell = document.createElement('td');
+					stationCell.style.maxWidth = '160px';
+					stationCell.innerText = station.station;
+					stationCell.style.width = '160px';
+					stationCell.style.paddingLeft = '5px';
+					stationCell.style.paddingRight = '5px';
+					stationCell.style.color = 'white';
+					stationCell.style.textAlign = 'left';
+					stationCell.style.overflow = 'hidden';
+					stationCell.style.whiteSpace = 'nowrap';
+					stationCell.style.textOverflow = 'ellipsis';
+					row.appendChild(stationCell);
 
-            const stationCell = document.createElement('td');
-            stationCell.innerText = station.station;
-            stationCell.style.maxWidth = '160px';
-            stationCell.style.width = '160px';
-            stationCell.style.paddingLeft = '5px';
-            stationCell.style.paddingRight = '5px';
-            stationCell.style.color = 'white';
-            stationCell.style.textAlign = 'left';
-            stationCell.style.overflow = 'hidden';
-            stationCell.style.whiteSpace = 'nowrap';
-            stationCell.style.textOverflow = 'ellipsis';
-            row.appendChild(stationCell);
+					// Create and append the city and ITU code cell
+					const cityAllCell = document.createElement('td');
+					cityAllCell.innerText = `${city} [${itu}]`;
+					cityAllCell.style.maxWidth = '160px';
+					cityAllCell.style.width = '160px';
+					cityAllCell.style.paddingRight = '5px';
+					cityAllCell.style.paddingLeft = '5px';
+					cityAllCell.title = 'open frequency list';
+					cityAllCell.style.color = 'white';
+					cityAllCell.style.textAlign = 'left';
+					cityAllCell.style.overflow = 'hidden';
+					cityAllCell.style.whiteSpace = 'nowrap';
+					cityAllCell.style.textOverflow = 'ellipsis';
+					cityAllCell.style.cursor = 'pointer';
+					row.appendChild(cityAllCell);
 
-            // Create and append the city and ITU code cell
-            const cityAllCell = document.createElement('td');
-            cityAllCell.innerText = `${city} [${itu}]`;
-            cityAllCell.style.maxWidth = '160px';
-            cityAllCell.style.width = '160px';
-            cityAllCell.style.paddingRight = '5px';
-            cityAllCell.style.paddingLeft = '5px';
-            cityAllCell.title = 'open frequency list';
-            cityAllCell.style.color = 'white';
-            cityAllCell.style.textAlign = 'left';
-            cityAllCell.style.overflow = 'hidden';
-            cityAllCell.style.whiteSpace = 'nowrap';
-            cityAllCell.style.textOverflow = 'ellipsis';
-            cityAllCell.style.cursor = 'pointer';
-            row.appendChild(cityAllCell);
+					// Add hover effect for city cell
+					cityAllCell.addEventListener('mouseover', () => {
+						cityAllCell.style.textDecoration = 'underline';
+						cityAllCell.style.color = 'var(--color-5)';
+					});
 
-            // Add hover effect for city cell
-            cityAllCell.addEventListener('mouseover', () => {
-                cityAllCell.style.textDecoration = 'underline';
-                cityAllCell.style.color = 'var(--color-5)';
-            });
+					cityAllCell.addEventListener('mouseout', () => {
+						cityAllCell.style.textDecoration = 'none';
+						cityAllCell.style.color = 'white';
+					});
 
-            cityAllCell.addEventListener('mouseout', () => {
-                cityAllCell.style.textDecoration = 'none';
-                cityAllCell.style.color = 'white';
-            });
+					// Add click event to display more stations from the same city
+					cityAllCell.addEventListener('click', () => {
+						displayStationData(data, txposLat, txposLon, foundPI); // Ensure this function is defined correctly
+					});
 
-            // Add click event to display more stations from the same city
-            cityAllCell.addEventListener('click', () => {
-                displayStationData(data, txposLat, txposLon, foundPI); // Ensure this function is defined correctly
-            });
+					// Create and append the distance cell
+					const distanceCell = document.createElement('td');
+					distanceCell.innerText = `${Math.round(distanceToCity)} km`;
+					distanceCell.style.padding = '0';
+					distanceCell.style.maxWidth = '75px';
+					distanceCell.style.paddingLeft = '10px';
+					distanceCell.style.paddingRight = '10px';
+					distanceCell.style.color = 'white';
+					distanceCell.style.textAlign = 'right';
+					distanceCell.style.overflow = 'hidden';
+					distanceCell.style.whiteSpace = 'nowrap';
+					distanceCell.style.textOverflow = 'ellipsis';
+					row.appendChild(distanceCell);
 
-            // Create and append the distance cell
-            const distanceCell = document.createElement('td');
-            distanceCell.innerText = `${Math.round(distanceToCity)} km`;
-            distanceCell.style.padding = '0';
-            distanceCell.style.maxWidth = '75px';
-            distanceCell.style.paddingLeft = '10px';
-            distanceCell.style.paddingRight = '10px';
-            distanceCell.style.color = 'white';
-            distanceCell.style.textAlign = 'right';
-            distanceCell.style.overflow = 'hidden';
-            distanceCell.style.whiteSpace = 'nowrap';
-            distanceCell.style.textOverflow = 'ellipsis';
-            row.appendChild(distanceCell);
+					const polCell = document.createElement('td');
+					polCell.innerText = `${station.pol.substring(0, 1)}`;
+					polCell.style.maxWidth = '1px';
+					polCell.style.width = '1px';
+					polCell.style.paddingLeft = '5px';
+					polCell.style.paddingRight = '15px';
+					polCell.style.color = 'white';
+					polCell.style.textAlign = 'right';       
+					row.appendChild(polCell);
 
-            const polCell = document.createElement('td');
-            polCell.innerText = `${station.pol.substring(0, 1)}`;
-            polCell.style.maxWidth = '1px';
-            polCell.style.width = '1px';
-            polCell.style.paddingLeft = '5px';
-            polCell.style.paddingRight = '15px';
-            polCell.style.color = 'white';
-            polCell.style.textAlign = 'right';       
-            row.appendChild(polCell);
+					// Create and append the ERP cell
+					const erpCell = document.createElement('td');
+					erpCell.innerText = `${erp.toFixed(2)} kW`;
+					erpCell.style.maxWidth = '100px';
+					erpCell.style.width = '100px';
+					erpCell.style.paddingLeft = '5px';
+					erpCell.style.paddingRight = '5px';
+					erpCell.style.color = 'white';
+					erpCell.style.textAlign = 'right';
+					erpCell.style.overflow = 'hidden';
+					erpCell.style.whiteSpace = 'nowrap';
+					erpCell.style.textOverflow = 'ellipsis';
 
-            // Create and append the ERP cell
-            const erpCell = document.createElement('td');
-            erpCell.innerText = `${erp.toFixed(2)} kW`;
-            erpCell.style.maxWidth = '100px';
-            erpCell.style.width = '100px';
-            erpCell.style.paddingLeft = '5px';
-            erpCell.style.paddingRight = '5px';
-            erpCell.style.color = 'white';
-            erpCell.style.textAlign = 'right';
-            erpCell.style.overflow = 'hidden';
-            erpCell.style.whiteSpace = 'nowrap';
-            erpCell.style.textOverflow = 'ellipsis';
+					if (erp < 0.5) {
+						// ERP less than 0.5 kW, set background color to purple
+						erpCell.style.backgroundColor = '#7800FF';
+					} else if (erp >= 0.5 && erp < 5.0) {
+						// ERP between 0.5 kW and 5.0 kW, set background color to blue
+						erpCell.style.backgroundColor = '#238BFF';
+					} else if (erp >= 5.0) {
+						// ERP greater than or equal to 5.0 kW, set background color to dark blue
+						erpCell.style.backgroundColor = '#0000FF';
+					}
 
-            if (erp < 0.5) {
-                // ERP less than 0.5 kW, set background color to purple
-                erpCell.style.backgroundColor = '#7800FF';
-            } else if (erp >= 0.5 && erp < 5.0) {
-                // ERP between 0.5 kW and 5.0 kW, set background color to blue
-                erpCell.style.backgroundColor = '#238BFF';
-            } else if (erp >= 5.0) {
-                // ERP greater than or equal to 5.0 kW, set background color to dark blue
-                erpCell.style.backgroundColor = '#0000FF';
-            }
+					row.appendChild(erpCell);
 
-            row.appendChild(erpCell);
-
-            table.appendChild(row);
+					table.appendChild(row);
             
-            // Create and append an empty row for spacing
-            const emptyRow = document.createElement('tr');
-            const emptyCell = document.createElement('td');
+					// Create and append an empty row for spacing
+					const emptyRow = document.createElement('tr');
+					const emptyCell = document.createElement('td');
             
-            emptyCell.colSpan = 7; // Adjust the number of columns accordingly
-            emptyCell.style.height = '2px'; // Height of the empty row
-            emptyRow.appendChild(emptyCell);
-            table.appendChild(emptyRow);
-        });
-	}
+					emptyCell.colSpan = 7; // Adjust the number of columns accordingly
+					emptyCell.style.height = '2px'; // Height of the empty row
+					emptyRow.appendChild(emptyCell);
+					table.appendChild(emptyRow);
+				}
+				});
+			}
 
-	// onclick-Ereignis setzen, sodass derselbe Code auch bei einem Klick ausgeführt wird
-	cell.onclick = () => {
-		const cityToDisplay = cell.innerText.split(' [')[0]; // Define cityToDisplay here
+			// onclick-Ereignis setzen, sodass derselbe Code auch bei einem Klick ausgeführt wird
+			cell.onclick = () => {
+			const cityToDisplay = cell.innerText.split(' [')[0]; // Define cityToDisplay here
 
-        const cityStation = allStations.find(station => station.city === cityToDisplay);
-        if (!cityStation) {
-            console.warn('City not found:', cityToDisplay);
-            return;
-        }
+			const cityStation = allStations.find(station => station.city === cityToDisplay);
+			if (!cityStation) {
+				console.warn('City not found:', cityToDisplay);
+				return;
+			}
 
-        const distanceToCity = calculateDistance(txposLat, txposLon, cityStation.lat, cityStation.lon);
+			const distanceToCity = calculateDistance(txposLat, txposLon, cityStation.lat, cityStation.lon);
 
-        // Filter and sort the stations of the selected city by ERP in descending order
-        const stationsOfCity = allStations
-            .filter(station => station.city === cityToDisplay)
-            .sort((a, b) => b.erp - a.erp); // Sorting in descending order based on ERP
+			// Filter and sort the stations of the selected city by ERP in descending order
+			const stationsOfCity = allStations
+				.filter(station => station.city === cityToDisplay)
+				.sort((a, b) => b.erp - a.erp); // Sorting in descending order based on ERP
 
-        // Clear the table before displaying stations from the selected city
-        table.innerHTML = '';
+			// Clear the table before displaying stations from the selected city
+			table.innerHTML = '';
+	
+			// Iterate through the stations from the same city and create table rows
+			stationsOfCity.forEach(({ station, city, distance, pi, erp, id, itu }) => {
+			if (station.pi || parseFloat(station.freq) < 74.00) {
+				const row = document.createElement('tr');
 
-        // Iterate through the stations from the same city and create table rows
-        stationsOfCity.forEach(({ station, city, distance, pi, erp, id, itu }) => {
-            const row = document.createElement('tr');
+				// Highlight the row if it's the current station
+				if (station.id === stationid) {
+					row.classList.add('bg-color-1');
+				} else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
+					row.classList.add('bg-color-1');
+				}
 
-            // Highlight the row if it's the current station
-            if (station.id === stationid) {
-                row.classList.add('bg-color-1');
-            } else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
-                row.classList.add('bg-color-1');
-            }
+				// Create a cell with a link to the station stream
+				const streamCell = document.createElement('td');
+				const streamLink = document.createElement('a');
+				const playIcon = document.createElement('i');
+				playIcon.className = 'fas fa-play';
+				playIcon.style.color = 'green';
+				playIcon.style.cursor = 'pointer';
 
-            // Create a cell with a link to the station stream
-            const streamCell = document.createElement('td');
-            const streamLink = document.createElement('a');
-            const playIcon = document.createElement('i');
-            playIcon.className = 'fas fa-play';
-            playIcon.style.color = 'green';
-            playIcon.style.cursor = 'pointer';
+				streamLink.appendChild(playIcon);
+				streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
+				streamLink.style.color = 'green';
+				streamLink.style.textDecoration = 'none';
+				streamLink.title = 'play livestream';
+				streamCell.appendChild(streamLink);
+				streamCell.style.paddingLeft = '10px';
+				streamCell.style.paddingRight = '10px';
+				streamCell.style.width = '5px';
+				streamCell.style.maxWidth = '5px';
+				streamCell.style.textAlign = 'left';
+				row.appendChild(streamCell);
 
-            streamLink.appendChild(playIcon);
-            streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
-            streamLink.style.color = 'green';
-            streamLink.style.textDecoration = 'none';
-            streamLink.title = 'play livestream';
-            streamCell.appendChild(streamLink);
-            streamCell.style.paddingLeft = '10px';
-            streamCell.style.paddingRight = '10px';
-            streamCell.style.width = '5px';
-            streamCell.style.maxWidth = '5px';
-            streamCell.style.textAlign = 'left';
-            row.appendChild(streamCell);
+				const freqCellStation = document.createElement('td');
+				freqCellStation.innerText = `${station.freq.toFixed(2)} MHz`;
+				freqCellStation.style.maxWidth = '100px';
+				freqCellStation.style.width = '100px';
+				freqCellStation.style.paddingLeft = '5px';
+				freqCellStation.style.paddingRight = '25px';
+				freqCellStation.style.color = 'white';
+				freqCellStation.style.textAlign = 'right';
+				freqCellStation.style.overflow = 'hidden';
+				freqCellStation.style.whiteSpace = 'nowrap';
+				freqCellStation.style.textOverflow = 'ellipsis';
+				freqCellStation.style.cursor = 'pointer';
+				row.appendChild(freqCellStation);
+	
+				// Add hover effect and click event for sending frequency data over WebSocket
+				freqCellStation.addEventListener('mouseover', () => {
+					freqCellStation.style.textDecoration = 'underline';
+					freqCellStation.style.color = 'var(--color-4)';
+				});
 
-            const freqCellStation = document.createElement('td');
-            freqCellStation.innerText = `${station.freq.toFixed(2)} MHz`;
-            freqCellStation.style.maxWidth = '100px';
-            freqCellStation.style.width = '100px';
-            freqCellStation.style.paddingLeft = '5px';
-            freqCellStation.style.paddingRight = '25px';
-            freqCellStation.style.color = 'white';
-            freqCellStation.style.textAlign = 'right';
-            freqCellStation.style.overflow = 'hidden';
-            freqCellStation.style.whiteSpace = 'nowrap';
-            freqCellStation.style.textOverflow = 'ellipsis';
-            freqCellStation.style.cursor = 'pointer';
-            row.appendChild(freqCellStation);
+				freqCellStation.addEventListener('mouseout', () => {
+					freqCellStation.style.textDecoration = 'none';
+					freqCellStation.style.color = 'white';
+				});
 
-            // Add hover effect and click event for sending frequency data over WebSocket
-            freqCellStation.addEventListener('mouseover', () => {
-                freqCellStation.style.textDecoration = 'underline';
-                freqCellStation.style.color = 'var(--color-4)';
-            });
+				freqCellStation.onclick = () => {
+					const dataToSend = `T${(parseFloat(station.freq) * 1000).toFixed(0)}`;
+					socket.send(dataToSend);
+					debugLog("WebSocket sending:", dataToSend);
+				};
 
-            freqCellStation.addEventListener('mouseout', () => {
-                freqCellStation.style.textDecoration = 'none';
-                freqCellStation.style.color = 'white';
-            });
+				const piCell = document.createElement('td');
+				if (station.pi) {
+					piCell.innerText = pi;
+				}
+				piCell.style.maxWidth = '70px';
+				piCell.style.width = '70px';
+				piCell.style.paddingLeft = '5px';
+				piCell.style.paddingRight = '25px';
+				piCell.style.color = 'white';
+				piCell.style.textAlign = 'right';
+				piCell.style.overflow = 'hidden';
+				piCell.style.whiteSpace = 'nowrap';
+				piCell.style.textOverflow = 'ellipsis';
+				row.appendChild(piCell);
 
-            freqCellStation.onclick = () => {
-                const dataToSend = `T${(parseFloat(station.freq) * 1000).toFixed(0)}`;
-                socket.send(dataToSend);
-                debugLog("WebSocket sending:", dataToSend);
-            };
+				const stationCell = document.createElement('td');
+				stationCell.innerText = station.station;
+				stationCell.style.maxWidth = '160px';
+				stationCell.style.width = '160px';
+				stationCell.style.paddingLeft = '5px';
+				stationCell.style.paddingRight = '5px';
+				stationCell.style.color = 'white';
+				stationCell.style.textAlign = 'left';
+				stationCell.style.overflow = 'hidden';
+				stationCell.style.whiteSpace = 'nowrap';
+				stationCell.style.textOverflow = 'ellipsis';
+				row.appendChild(stationCell);
 
-            const piCell = document.createElement('td');
-            if (station.pi) {
-                piCell.innerText = pi;
-            }
-            piCell.style.maxWidth = '70px';
-            piCell.style.width = '70px';
-            piCell.style.paddingLeft = '5px';
-            piCell.style.paddingRight = '25px';
-            piCell.style.color = 'white';
-            piCell.style.textAlign = 'right';
-            piCell.style.overflow = 'hidden';
-            piCell.style.whiteSpace = 'nowrap';
-            piCell.style.textOverflow = 'ellipsis';
-            row.appendChild(piCell);
+				// Create and append the city and ITU code cell
+				const cityAllCell = document.createElement('td');
+				cityAllCell.innerText = `${city} [${itu}]`;
+				cityAllCell.style.maxWidth = '160px';
+				cityAllCell.style.width = '160px';
+				cityAllCell.style.paddingRight = '5px';
+				cityAllCell.style.paddingLeft = '5px';
+				cityAllCell.title = 'open frequency list';
+				cityAllCell.style.color = 'white';
+				cityAllCell.style.textAlign = 'left';
+				cityAllCell.style.overflow = 'hidden';
+				cityAllCell.style.whiteSpace = 'nowrap';
+				cityAllCell.style.textOverflow = 'ellipsis';
+				cityAllCell.style.cursor = 'pointer';
+				row.appendChild(cityAllCell);
 
-            const stationCell = document.createElement('td');
-            stationCell.innerText = station.station;
-            stationCell.style.maxWidth = '160px';
-            stationCell.style.width = '160px';
-            stationCell.style.paddingLeft = '5px';
-            stationCell.style.paddingRight = '5px';
-            stationCell.style.color = 'white';
-            stationCell.style.textAlign = 'left';
-            stationCell.style.overflow = 'hidden';
-            stationCell.style.whiteSpace = 'nowrap';
-            stationCell.style.textOverflow = 'ellipsis';
-            row.appendChild(stationCell);
+				// Add hover effect for city cell
+				cityAllCell.addEventListener('mouseover', () => {
+					cityAllCell.style.textDecoration = 'underline';
+					cityAllCell.style.color = 'var(--color-5)';
+				});
 
-            // Create and append the city and ITU code cell
-            const cityAllCell = document.createElement('td');
-            cityAllCell.innerText = `${city} [${itu}]`;
-            cityAllCell.style.maxWidth = '160px';
-            cityAllCell.style.width = '160px';
-            cityAllCell.style.paddingRight = '5px';
-            cityAllCell.style.paddingLeft = '5px';
-            cityAllCell.title = 'open frequency list';
-            cityAllCell.style.color = 'white';
-            cityAllCell.style.textAlign = 'left';
-            cityAllCell.style.overflow = 'hidden';
-            cityAllCell.style.whiteSpace = 'nowrap';
-            cityAllCell.style.textOverflow = 'ellipsis';
-            cityAllCell.style.cursor = 'pointer';
-            row.appendChild(cityAllCell);
+				cityAllCell.addEventListener('mouseout', () => {
+					cityAllCell.style.textDecoration = 'none';
+					cityAllCell.style.color = 'white';
+				});
 
-            // Add hover effect for city cell
-            cityAllCell.addEventListener('mouseover', () => {
-                cityAllCell.style.textDecoration = 'underline';
-                cityAllCell.style.color = 'var(--color-5)';
-            });
+				// Add click event to display more stations from the same city
+				cityAllCell.addEventListener('click', () => {
+					displayStationData(data, txposLat, txposLon, foundPI); // Ensure this function is defined correctly
+				});
 
-            cityAllCell.addEventListener('mouseout', () => {
-                cityAllCell.style.textDecoration = 'none';
-                cityAllCell.style.color = 'white';
-            });
+				// Create and append the distance cell
+				const distanceCell = document.createElement('td');
+				distanceCell.innerText = `${Math.round(distanceToCity)} km`;
+				distanceCell.style.padding = '0';
+				distanceCell.style.maxWidth = '75px';
+				distanceCell.style.paddingLeft = '10px';
+				distanceCell.style.paddingRight = '10px';
+				distanceCell.style.color = 'white';
+				distanceCell.style.textAlign = 'right';
+				distanceCell.style.overflow = 'hidden';
+				distanceCell.style.whiteSpace = 'nowrap';
+				distanceCell.style.textOverflow = 'ellipsis';
+				row.appendChild(distanceCell);
 
-            // Add click event to display more stations from the same city
-            cityAllCell.addEventListener('click', () => {
-                displayStationData(data, txposLat, txposLon, foundPI); // Ensure this function is defined correctly
-            });
+				const polCell = document.createElement('td');
+				polCell.innerText = `${station.pol.substring(0, 1)}`;
+				polCell.style.maxWidth = '1px';
+				polCell.style.width = '1px';
+				polCell.style.paddingLeft = '5px';
+				polCell.style.paddingRight = '15px';
+				polCell.style.color = 'white';
+				polCell.style.textAlign = 'right';       
+				row.appendChild(polCell);
 
-            // Create and append the distance cell
-            const distanceCell = document.createElement('td');
-            distanceCell.innerText = `${Math.round(distanceToCity)} km`;
-            distanceCell.style.padding = '0';
-            distanceCell.style.maxWidth = '75px';
-            distanceCell.style.paddingLeft = '10px';
-            distanceCell.style.paddingRight = '10px';
-            distanceCell.style.color = 'white';
-            distanceCell.style.textAlign = 'right';
-            distanceCell.style.overflow = 'hidden';
-            distanceCell.style.whiteSpace = 'nowrap';
-            distanceCell.style.textOverflow = 'ellipsis';
-            row.appendChild(distanceCell);
+				// Create and append the ERP cell
+				const erpCell = document.createElement('td');
+				erpCell.innerText = `${erp.toFixed(2)} kW`;
+				erpCell.style.maxWidth = '100px';
+				erpCell.style.width = '100px';
+				erpCell.style.paddingLeft = '5px';
+				erpCell.style.paddingRight = '5px';
+				erpCell.style.color = 'white';
+				erpCell.style.textAlign = 'right';
+				erpCell.style.overflow = 'hidden';
+				erpCell.style.whiteSpace = 'nowrap';
+				erpCell.style.textOverflow = 'ellipsis';
 
-            const polCell = document.createElement('td');
-            polCell.innerText = `${station.pol.substring(0, 1)}`;
-            polCell.style.maxWidth = '1px';
-            polCell.style.width = '1px';
-            polCell.style.paddingLeft = '5px';
-            polCell.style.paddingRight = '15px';
-            polCell.style.color = 'white';
-            polCell.style.textAlign = 'right';       
-            row.appendChild(polCell);
+				if (erp < 0.5) {
+					// ERP less than 0.5 kW, set background color to purple
+					erpCell.style.backgroundColor = '#7800FF';
+				} else if (erp >= 0.5 && erp < 5.0) {
+					// ERP between 0.5 kW and 5.0 kW, set background color to blue
+					erpCell.style.backgroundColor = '#238BFF';
+				} else if (erp >= 5.0) {
+					// ERP greater than or equal to 5.0 kW, set background color to dark blue
+					erpCell.style.backgroundColor = '#0000FF';
+				}
 
-            // Create and append the ERP cell
-            const erpCell = document.createElement('td');
-            erpCell.innerText = `${erp.toFixed(2)} kW`;
-            erpCell.style.maxWidth = '100px';
-            erpCell.style.width = '100px';
-            erpCell.style.paddingLeft = '5px';
-            erpCell.style.paddingRight = '5px';
-            erpCell.style.color = 'white';
-            erpCell.style.textAlign = 'right';
-            erpCell.style.overflow = 'hidden';
-            erpCell.style.whiteSpace = 'nowrap';
-            erpCell.style.textOverflow = 'ellipsis';
+				row.appendChild(erpCell);
 
-            if (erp < 0.5) {
-                // ERP less than 0.5 kW, set background color to purple
-                erpCell.style.backgroundColor = '#7800FF';
-            } else if (erp >= 0.5 && erp < 5.0) {
-                // ERP between 0.5 kW and 5.0 kW, set background color to blue
-                erpCell.style.backgroundColor = '#238BFF';
-            } else if (erp >= 5.0) {
-                // ERP greater than or equal to 5.0 kW, set background color to dark blue
-                erpCell.style.backgroundColor = '#0000FF';
-            }
-
-            row.appendChild(erpCell);
-
-            table.appendChild(row);
+				table.appendChild(row);
             
-            // Create and append an empty row for spacing
-            const emptyRow = document.createElement('tr');
-            const emptyCell = document.createElement('td');
+				// Create and append an empty row for spacing
+				const emptyRow = document.createElement('tr');
+				const emptyCell = document.createElement('td');
             
-            emptyCell.colSpan = 7; // Adjust the number of columns accordingly
-            emptyCell.style.height = '2px'; // Height of the empty row
-            emptyRow.appendChild(emptyCell);
-            table.appendChild(emptyRow);		
+				emptyCell.colSpan = 7; // Adjust the number of columns accordingly
+				emptyCell.style.height = '2px'; // Height of the empty row
+				emptyRow.appendChild(emptyCell);
+				table.appendChild(emptyRow);	
+			};
         });	
 		};	
 	});
