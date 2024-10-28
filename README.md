@@ -5,9 +5,9 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 ![image](https://github.com/user-attachments/assets/a8e2919d-19d3-4336-b407-e71adb95db99)
 
 
-## v2.1f
+## v2.2
 
-- Once the transmitter has been identified, all other programs and frequencies for the location are displayed
+- Integrated filter for programs without PI code above 74 MHz
 
 
 ## Installation notes:
@@ -30,6 +30,10 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 - Click on the web server's frequency display to quickly jump to the previous frequency or toggle between two frequencies
   
 ## History:
+
+### v2.1f
+
+- Once the transmitter has been identified, all other programs and frequencies for the location are displayed
 
 ### v2.1e
 
