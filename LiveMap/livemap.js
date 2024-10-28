@@ -27,7 +27,7 @@ let iframeHeight = parseInt(localStorage.getItem('iframeHeight')) || 650;
 let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
 let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
-    const plugin_version = 'V2.1f';
+    const plugin_version = 'V2.2';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
