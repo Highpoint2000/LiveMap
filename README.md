@@ -7,7 +7,7 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 
 ## v2.1f
 
-- Once the transmitter has been identified, all other programs and frequencies for the location are displayed directly 
+- Once the transmitter has been identified, all other programs and frequencies for the location are displayed
 
 
 ## Installation notes:
