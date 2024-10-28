@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1e)          ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.1f)          ///
 ///                                                      ///
-///  by Highpoint                last update: 04.10.24   ///
+///  by Highpoint                last update: 28.10.24   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
@@ -19,13 +19,14 @@ function debugLog(...messages) {
     }
 }
 
+(() => {
+
 // Define iframe size and position variables
 let iframeWidth = parseInt(localStorage.getItem('iframeWidth')) || 600; 
 let iframeHeight = parseInt(localStorage.getItem('iframeHeight')) || 650; 
 let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
 let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
-(() => {
     const plugin_version = 'V2.1f';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
@@ -44,16 +45,16 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
     // Add custom CSS styles
     const style = document.createElement('style');
     style.innerHTML = `
-.tooltip1 {
+.tooltipLeft {
     display: inline-block;
     cursor: pointer;
 }
 
-.tooltip1::after {
+.tooltipLeft::after {
   content: attr(data-tooltip); /* Das Attribut verwenden */
   position: absolute;
   bottom: 100%; /* Tooltip oberhalb des Elements anzeigen */
-  transform: translateX(-100%);
+  transform: translateX(-108%);
   background-color: var(--color-3);
   color: var(--color-text);
   padding: 5px 25px;
@@ -61,21 +62,21 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
   white-space: nowrap;
   font-size: 14px;
   opacity: 0;
-  z-index: 9999;
+  z-index: 1000;
   pointer-events: none;
   transition: opacity 0.3s;
 }
 
-.tooltip1:hover::after {
+.tooltipLeft:hover::after {
   opacity: 1;
 }
 
-.tooltip2 {
+.tooltipRight {
     display: inline-block;
     cursor: pointer;
 }
 
-.tooltip2::after {
+.tooltipRight::after {
   content: attr(data-tooltip); /* Das Attribut verwenden */
   position: absolute;
   bottom: 100%; /* Tooltip oberhalb des Elements anzeigen */
@@ -87,12 +88,12 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
   white-space: nowrap;
   font-size: 14px;
   opacity: 0;
-  z-index: 9999;
+  z-index: 1000;
   pointer-events: none;
   transition: opacity 0.3s;
 }
 
-.tooltip2:hover::after {
+.tooltipRight:hover::after {
   opacity: 1;
 }
 
@@ -207,6 +208,7 @@ body {
     .switch.enabled .slider {
         background-color: green;
     }
+
     `;
     document.head.appendChild(style);
 		
@@ -286,7 +288,7 @@ body {
     // Function to create the toggle button
     function createToggleButton() {
         const toggleButton = document.createElement('div');
-		toggleButton.classList.add('tooltip2'); // Klasse hinzufügen
+		toggleButton.classList.add('tooltipRight'); // Klasse hinzufügen
 		toggleButton.setAttribute('data-tooltip', 'Toggle Station List'); // Daten-Attribut setzen
         toggleButton.style.width = '10px';
         toggleButton.style.height = '10px';
@@ -384,14 +386,15 @@ body {
         closeButton.innerHTML = 'x';
         closeButton.style.position = 'absolute';
         closeButton.style.top = '0px';
-        closeButton.style.right = '8px';
+        closeButton.style.right = '9px';
         closeButton.style.cursor = 'pointer';
         closeButton.style.color = 'white';
         closeButton.classList.add('bg-color-2');
-        closeButton.style.padding = '4px';
+        closeButton.style.padding = '0px';
         closeButton.style.paddingLeft = '15px';
-        closeButton.style.zIndex = '10'; 
+        closeButton.style.zIndex = '5'; 
         closeButton.style.fontSize = '20px';
+
 
         closeButton.onclick = () => {
             iframeLeft = parseInt(iframeContainer.style.left);
@@ -519,13 +522,17 @@ body {
         toggleSwitchLabel.innerHTML = 'TXPOS';
         toggleSwitchLabel.style.marginLeft = '10px'; 
         toggleSwitchLabel.style.whiteSpace = 'nowrap'; 
+		toggleSwitchLabel.style.textTransform = 'none'; 
+		toggleSwitchLabel.classList.add('tooltipLeft'); 
+        toggleSwitchLabel.setAttribute('data-tooltip', 'Set the position to transmitter'); 
 
         const toggleSwitch = document.createElement('label');
         toggleSwitch.classList.add('switch'); 
 
         const input = document.createElement('input');
         input.type = 'checkbox';
-        input.id = 'txposSwitch';
+        input.id = 'txposSwitch';	
+		
         input.disabled = false;
 
         const slider = document.createElement('span');
@@ -712,8 +719,8 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
     function toRadians(degrees) {
         return degrees * (Math.PI / 180);
     }
-
-    async function displayStationData(data, txposLat, txposLon, picode, pol, foundPI) {
+	
+	async function displayStationData(data, txposLat, txposLon, picode, pol, foundPI) {
         if (!data || !data.locations || typeof data.locations !== 'object') {
             // console.warn('No valid data received for station display.');
             return;
@@ -729,7 +736,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
             stationListContainer.classList.add('bg-color-2');
             stationListContainer.style.padding = '15px';
             stationListContainer.style.borderRadius = '0px 0px 15px 15px';
-            stationListContainer.style.zIndex = '1000';
+            stationListContainer.style.zIndex = '10';
             stationListContainer.style.maxHeight = '182px';
             stationListContainer.style.overflowY = 'scroll';
             stationListContainer.style.visibility = 'visible'; 
@@ -959,8 +966,8 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 const cityCells = table.querySelectorAll('td:nth-child(5)');
 cityCells.forEach(cell => {
     cell.style.cursor = 'pointer';
-    cell.onclick = () => {
-        const cityToDisplay = cell.innerText.split(' [')[0]; // Define cityToDisplay here
+	if (picode !== '?' && foundPI) {
+		const cityToDisplay = cell.innerText.split(' [')[0]; // Define cityToDisplay here
 
         const cityStation = allStations.find(station => station.city === cityToDisplay);
         if (!cityStation) {
@@ -1161,11 +1168,218 @@ cityCells.forEach(cell => {
             emptyCell.style.height = '2px'; // Height of the empty row
             emptyRow.appendChild(emptyCell);
             table.appendChild(emptyRow);
-			});
-		};
-	});
-
+        });
 	}
+
+	// onclick-Ereignis setzen, sodass derselbe Code auch bei einem Klick ausgeführt wird
+	cell.onclick = () => {
+		const cityToDisplay = cell.innerText.split(' [')[0]; // Define cityToDisplay here
+
+        const cityStation = allStations.find(station => station.city === cityToDisplay);
+        if (!cityStation) {
+            console.warn('City not found:', cityToDisplay);
+            return;
+        }
+
+        const distanceToCity = calculateDistance(txposLat, txposLon, cityStation.lat, cityStation.lon);
+
+        // Filter and sort the stations of the selected city by ERP in descending order
+        const stationsOfCity = allStations
+            .filter(station => station.city === cityToDisplay)
+            .sort((a, b) => b.erp - a.erp); // Sorting in descending order based on ERP
+
+        // Clear the table before displaying stations from the selected city
+        table.innerHTML = '';
+
+        // Iterate through the stations from the same city and create table rows
+        stationsOfCity.forEach(({ station, city, distance, pi, erp, id, itu }) => {
+            const row = document.createElement('tr');
+
+            // Highlight the row if it's the current station
+            if (station.id === stationid) {
+                row.classList.add('bg-color-1');
+            } else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
+                row.classList.add('bg-color-1');
+            }
+
+            // Create a cell with a link to the station stream
+            const streamCell = document.createElement('td');
+            const streamLink = document.createElement('a');
+            const playIcon = document.createElement('i');
+            playIcon.className = 'fas fa-play';
+            playIcon.style.color = 'green';
+            playIcon.style.cursor = 'pointer';
+
+            streamLink.appendChild(playIcon);
+            streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
+            streamLink.style.color = 'green';
+            streamLink.style.textDecoration = 'none';
+            streamLink.title = 'play livestream';
+            streamCell.appendChild(streamLink);
+            streamCell.style.paddingLeft = '10px';
+            streamCell.style.paddingRight = '10px';
+            streamCell.style.width = '5px';
+            streamCell.style.maxWidth = '5px';
+            streamCell.style.textAlign = 'left';
+            row.appendChild(streamCell);
+
+            const freqCellStation = document.createElement('td');
+            freqCellStation.innerText = `${station.freq.toFixed(2)} MHz`;
+            freqCellStation.style.maxWidth = '100px';
+            freqCellStation.style.width = '100px';
+            freqCellStation.style.paddingLeft = '5px';
+            freqCellStation.style.paddingRight = '25px';
+            freqCellStation.style.color = 'white';
+            freqCellStation.style.textAlign = 'right';
+            freqCellStation.style.overflow = 'hidden';
+            freqCellStation.style.whiteSpace = 'nowrap';
+            freqCellStation.style.textOverflow = 'ellipsis';
+            freqCellStation.style.cursor = 'pointer';
+            row.appendChild(freqCellStation);
+
+            // Add hover effect and click event for sending frequency data over WebSocket
+            freqCellStation.addEventListener('mouseover', () => {
+                freqCellStation.style.textDecoration = 'underline';
+                freqCellStation.style.color = 'var(--color-4)';
+            });
+
+            freqCellStation.addEventListener('mouseout', () => {
+                freqCellStation.style.textDecoration = 'none';
+                freqCellStation.style.color = 'white';
+            });
+
+            freqCellStation.onclick = () => {
+                const dataToSend = `T${(parseFloat(station.freq) * 1000).toFixed(0)}`;
+                socket.send(dataToSend);
+                debugLog("WebSocket sending:", dataToSend);
+            };
+
+            const piCell = document.createElement('td');
+            if (station.pi) {
+                piCell.innerText = pi;
+            }
+            piCell.style.maxWidth = '70px';
+            piCell.style.width = '70px';
+            piCell.style.paddingLeft = '5px';
+            piCell.style.paddingRight = '25px';
+            piCell.style.color = 'white';
+            piCell.style.textAlign = 'right';
+            piCell.style.overflow = 'hidden';
+            piCell.style.whiteSpace = 'nowrap';
+            piCell.style.textOverflow = 'ellipsis';
+            row.appendChild(piCell);
+
+            const stationCell = document.createElement('td');
+            stationCell.innerText = station.station;
+            stationCell.style.maxWidth = '160px';
+            stationCell.style.width = '160px';
+            stationCell.style.paddingLeft = '5px';
+            stationCell.style.paddingRight = '5px';
+            stationCell.style.color = 'white';
+            stationCell.style.textAlign = 'left';
+            stationCell.style.overflow = 'hidden';
+            stationCell.style.whiteSpace = 'nowrap';
+            stationCell.style.textOverflow = 'ellipsis';
+            row.appendChild(stationCell);
+
+            // Create and append the city and ITU code cell
+            const cityAllCell = document.createElement('td');
+            cityAllCell.innerText = `${city} [${itu}]`;
+            cityAllCell.style.maxWidth = '160px';
+            cityAllCell.style.width = '160px';
+            cityAllCell.style.paddingRight = '5px';
+            cityAllCell.style.paddingLeft = '5px';
+            cityAllCell.title = 'open frequency list';
+            cityAllCell.style.color = 'white';
+            cityAllCell.style.textAlign = 'left';
+            cityAllCell.style.overflow = 'hidden';
+            cityAllCell.style.whiteSpace = 'nowrap';
+            cityAllCell.style.textOverflow = 'ellipsis';
+            cityAllCell.style.cursor = 'pointer';
+            row.appendChild(cityAllCell);
+
+            // Add hover effect for city cell
+            cityAllCell.addEventListener('mouseover', () => {
+                cityAllCell.style.textDecoration = 'underline';
+                cityAllCell.style.color = 'var(--color-5)';
+            });
+
+            cityAllCell.addEventListener('mouseout', () => {
+                cityAllCell.style.textDecoration = 'none';
+                cityAllCell.style.color = 'white';
+            });
+
+            // Add click event to display more stations from the same city
+            cityAllCell.addEventListener('click', () => {
+                displayStationData(data, txposLat, txposLon, foundPI); // Ensure this function is defined correctly
+            });
+
+            // Create and append the distance cell
+            const distanceCell = document.createElement('td');
+            distanceCell.innerText = `${Math.round(distanceToCity)} km`;
+            distanceCell.style.padding = '0';
+            distanceCell.style.maxWidth = '75px';
+            distanceCell.style.paddingLeft = '10px';
+            distanceCell.style.paddingRight = '10px';
+            distanceCell.style.color = 'white';
+            distanceCell.style.textAlign = 'right';
+            distanceCell.style.overflow = 'hidden';
+            distanceCell.style.whiteSpace = 'nowrap';
+            distanceCell.style.textOverflow = 'ellipsis';
+            row.appendChild(distanceCell);
+
+            const polCell = document.createElement('td');
+            polCell.innerText = `${station.pol.substring(0, 1)}`;
+            polCell.style.maxWidth = '1px';
+            polCell.style.width = '1px';
+            polCell.style.paddingLeft = '5px';
+            polCell.style.paddingRight = '15px';
+            polCell.style.color = 'white';
+            polCell.style.textAlign = 'right';       
+            row.appendChild(polCell);
+
+            // Create and append the ERP cell
+            const erpCell = document.createElement('td');
+            erpCell.innerText = `${erp.toFixed(2)} kW`;
+            erpCell.style.maxWidth = '100px';
+            erpCell.style.width = '100px';
+            erpCell.style.paddingLeft = '5px';
+            erpCell.style.paddingRight = '5px';
+            erpCell.style.color = 'white';
+            erpCell.style.textAlign = 'right';
+            erpCell.style.overflow = 'hidden';
+            erpCell.style.whiteSpace = 'nowrap';
+            erpCell.style.textOverflow = 'ellipsis';
+
+            if (erp < 0.5) {
+                // ERP less than 0.5 kW, set background color to purple
+                erpCell.style.backgroundColor = '#7800FF';
+            } else if (erp >= 0.5 && erp < 5.0) {
+                // ERP between 0.5 kW and 5.0 kW, set background color to blue
+                erpCell.style.backgroundColor = '#238BFF';
+            } else if (erp >= 5.0) {
+                // ERP greater than or equal to 5.0 kW, set background color to dark blue
+                erpCell.style.backgroundColor = '#0000FF';
+            }
+
+            row.appendChild(erpCell);
+
+            table.appendChild(row);
+            
+            // Create and append an empty row for spacing
+            const emptyRow = document.createElement('tr');
+            const emptyCell = document.createElement('td');
+            
+            emptyCell.colSpan = 7; // Adjust the number of columns accordingly
+            emptyCell.style.height = '2px'; // Height of the empty row
+            emptyRow.appendChild(emptyCell);
+            table.appendChild(emptyRow);		
+        });	
+		};	
+	});
+	}
+	
+	
 
 	// Function to open (or create) the IndexedDB database
     function openCacheDB() {
@@ -1425,14 +1639,22 @@ cityCells.forEach(cell => {
     // Find the element with the class "panel-33 hover-brighten" and the ID "freq-container"
     let element = document.querySelector('div.panel-33.hover-brighten#freq-container');
 
-    // Check if the element was found
-    if (element) {
-        // Add the class "tooltip"
-        element.classList.add('tooltip');
+// Check if the element was found
+if (element) {
+    // Add the class "tooltip"
+    element.classList.add('tooltip');
 
-        // Add the "data-tooltip" attribute
-        element.setAttribute('data-tooltip', 'Toggle actual frequency - previous frequency  |  Hold longer for deactivating/activating');
-    }
+    // Add the "data-tooltip" attribute
+    element.setAttribute('data-tooltip', 'Toggle actual frequency - previous frequency | Hold longer for deactivating/activating');
+
+    // Set a timeout to remove the tooltip after 2 seconds
+    setTimeout(() => {
+        element.classList.remove('tooltip'); // Remove the tooltip class to hide it
+        // element.style.visibility = 'hidden'; // Hide the tooltip after 2 seconds
+        element.removeAttribute('data-tooltip'); // Remove the data-tooltip attribute
+    }, 2000); // 2000 milliseconds = 2 seconds
+}
+
 
     // Find the element with the ID "freq-container"
     const freqContainer = document.getElementById('freq-container');
@@ -1509,10 +1731,9 @@ cityCells.forEach(cell => {
                     // Ensure the existingDiv is created or updated
                     const existingDiv = ensureExistingDiv(freq_save);
                     if (freq_save !== null) {
-                        existingDiv.style.marginTop = '-7px'; // Adjust the top margin
                         existingDiv.style.position = 'fixed'; // Set the position to fixed
                         existingDiv.style.left = '50%'; // Center horizontally
-                        existingDiv.style.top = '50%'; // Center vertically
+                        existingDiv.style.top = '48%'; // Center vertically
                         existingDiv.style.transform = 'translate(-50%, -50%)'; // Adjust position back to center
                     }
                     
@@ -1645,7 +1866,7 @@ cityCells.forEach(cell => {
     function addResizeFunctionality(element) {
         const resizer = document.createElement('div');
         resizer.id = 'resizer';
-        resizer.classList.add('tooltip1'); // Klasse hinzufügen
+        resizer.classList.add('tooltipLeft'); // Klasse hinzufügen
         resizer.setAttribute('data-tooltip', 'Resize Window'); // Daten-Attribut setzen
         resizer.style.width = '10px';
         resizer.style.height = '10px';
