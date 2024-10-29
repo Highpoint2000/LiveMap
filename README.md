@@ -28,7 +28,7 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 - Clicking on the location shows all programs at the location, clicking again returns. The frequency displayed in the location list can be clicked directly.
 - To move the web server horizontally, press and hold the LiveMap button and drag and drop!
 - Click on the web server's frequency display to quickly jump to the previous frequency or toggle between two frequencies
-- For authenticated station: Click on TX Location open directly fmscan.org website (FMSCAN login required)
+- For authenticated station: Click TX Location to directly open the fmscan.org website with more information (FMSCAN login required)
   
 ## History:
 
