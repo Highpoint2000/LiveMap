@@ -7,7 +7,7 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 
 ## v2.2
 
-- Integrated filter for programs without PI code above 74 MHz
+- Integrated filter for programs without station name
 
 
 ## Installation notes:
