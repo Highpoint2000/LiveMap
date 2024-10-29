@@ -32,7 +32,7 @@ This plugin displays the detected and neighboring broadcast stations in real tim
   
 ## History:
 
-### v2.2a
+### v2.2
 
 - Integrated filter for programs without station name
 
