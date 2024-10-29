@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.2)          ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.2a)          ///
 ///                                                      ///
 ///  by Highpoint                last update: 29.10.24   ///
 ///                                                      ///
@@ -27,7 +27,7 @@ let iframeHeight = parseInt(localStorage.getItem('iframeHeight')) || 650;
 let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
 let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
-    const plugin_version = 'V2.2';
+    const plugin_version = 'V2.2a';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
@@ -1091,7 +1091,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 						cityAllCell.style.width = '160px';
 						cityAllCell.style.paddingRight = '5px';
 						cityAllCell.style.paddingLeft = '5px';
-						cityAllCell.title = 'open frequency list';
+						cityAllCell.title = 'open transmitter location on fmscan.org ';
 						cityAllCell.style.color = 'white';
 						cityAllCell.style.textAlign = 'left';
 						cityAllCell.style.overflow = 'hidden';
@@ -1111,9 +1111,9 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 							cityAllCell.style.color = 'white';
 						});
 
-						// Add click event to display more stations from the same city
+						// Add click event to open the station's webpage
 						cityAllCell.addEventListener('click', () => {
-							displayStationData(data, txposLat, txposLon, foundPI); // Ensure this function is defined correctly
+							window.open(`https://fmscan.org/transmitter.php?i=${id}`, '_blank');
 						});
 
 						// Create and append the distance cell
@@ -1783,7 +1783,7 @@ if (element) {
                 timeoutId = setTimeout(() => {
                     openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
                     isFirstUpdateAfterChange = false; // Reset the update flag
-                }, 1000);
+                }, 1500);
             } else if (!isFirstUpdateAfterChange) {
                 // If the frequency has not changed, just update the iframe
                 openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
