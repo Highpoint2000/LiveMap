@@ -2,7 +2,7 @@
 ///                                                      ///
 ///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.2a)          ///
 ///                                                      ///
-///  by Highpoint                last update: 29.10.24   ///
+///  by Highpoint                last update: 30.10.24   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
@@ -19,14 +19,13 @@ function debugLog(...messages) {
     }
 }
 
-(() => {
-
 // Define iframe size and position variables
 let iframeWidth = parseInt(localStorage.getItem('iframeWidth')) || 600; 
 let iframeHeight = parseInt(localStorage.getItem('iframeHeight')) || 650; 
 let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
 let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
+(() => {
     const plugin_version = 'V2.2a';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
@@ -45,16 +44,16 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
     // Add custom CSS styles
     const style = document.createElement('style');
     style.innerHTML = `
-.tooltipLeft {
+.tooltip1 {
     display: inline-block;
     cursor: pointer;
 }
 
-.tooltipLeft::after {
+.tooltip1::after {
   content: attr(data-tooltip); /* Das Attribut verwenden */
   position: absolute;
   bottom: 100%; /* Tooltip oberhalb des Elements anzeigen */
-  transform: translateX(-108%);
+  transform: translateX(-100%);
   background-color: var(--color-3);
   color: var(--color-text);
   padding: 5px 25px;
@@ -62,21 +61,21 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
   white-space: nowrap;
   font-size: 14px;
   opacity: 0;
-  z-index: 1000;
+  z-index: 9999;
   pointer-events: none;
   transition: opacity 0.3s;
 }
 
-.tooltipLeft:hover::after {
+.tooltip1:hover::after {
   opacity: 1;
 }
 
-.tooltipRight {
+.tooltip2 {
     display: inline-block;
     cursor: pointer;
 }
 
-.tooltipRight::after {
+.tooltip2::after {
   content: attr(data-tooltip); /* Das Attribut verwenden */
   position: absolute;
   bottom: 100%; /* Tooltip oberhalb des Elements anzeigen */
@@ -88,12 +87,12 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
   white-space: nowrap;
   font-size: 14px;
   opacity: 0;
-  z-index: 1000;
+  z-index: 9999;
   pointer-events: none;
   transition: opacity 0.3s;
 }
 
-.tooltipRight:hover::after {
+.tooltip2:hover::after {
   opacity: 1;
 }
 
@@ -208,7 +207,6 @@ body {
     .switch.enabled .slider {
         background-color: green;
     }
-
     `;
     document.head.appendChild(style);
 		
@@ -288,7 +286,7 @@ body {
     // Function to create the toggle button
     function createToggleButton() {
         const toggleButton = document.createElement('div');
-		toggleButton.classList.add('tooltipRight'); // Klasse hinzufügen
+		toggleButton.classList.add('tooltip2'); // Klasse hinzufügen
 		toggleButton.setAttribute('data-tooltip', 'Toggle Station List'); // Daten-Attribut setzen
         toggleButton.style.width = '10px';
         toggleButton.style.height = '10px';
@@ -386,15 +384,14 @@ body {
         closeButton.innerHTML = 'x';
         closeButton.style.position = 'absolute';
         closeButton.style.top = '0px';
-        closeButton.style.right = '9px';
+        closeButton.style.right = '8px';
         closeButton.style.cursor = 'pointer';
         closeButton.style.color = 'white';
         closeButton.classList.add('bg-color-2');
-        closeButton.style.padding = '0px';
+        closeButton.style.padding = '4px';
         closeButton.style.paddingLeft = '15px';
-        closeButton.style.zIndex = '5'; 
+        closeButton.style.zIndex = '10'; 
         closeButton.style.fontSize = '20px';
-
 
         closeButton.onclick = () => {
             iframeLeft = parseInt(iframeContainer.style.left);
@@ -522,17 +519,13 @@ body {
         toggleSwitchLabel.innerHTML = 'TXPOS';
         toggleSwitchLabel.style.marginLeft = '10px'; 
         toggleSwitchLabel.style.whiteSpace = 'nowrap'; 
-		toggleSwitchLabel.style.textTransform = 'none'; 
-		toggleSwitchLabel.classList.add('tooltipLeft'); 
-        toggleSwitchLabel.setAttribute('data-tooltip', 'Set the position to transmitter'); 
 
         const toggleSwitch = document.createElement('label');
         toggleSwitch.classList.add('switch'); 
 
         const input = document.createElement('input');
         input.type = 'checkbox';
-        input.id = 'txposSwitch';	
-		
+        input.id = 'txposSwitch';
         input.disabled = false;
 
         const slider = document.createElement('span');
@@ -719,7 +712,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
     function toRadians(degrees) {
         return degrees * (Math.PI / 180);
     }
-	
+
 	async function displayStationData(data, txposLat, txposLon, picode, pol, foundPI) {
         if (!data || !data.locations || typeof data.locations !== 'object') {
             // console.warn('No valid data received for station display.');
@@ -1651,22 +1644,14 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
     // Find the element with the class "panel-33 hover-brighten" and the ID "freq-container"
     let element = document.querySelector('div.panel-33.hover-brighten#freq-container');
 
-// Check if the element was found
-if (element) {
-    // Add the class "tooltip"
-    element.classList.add('tooltip');
+    // Check if the element was found
+    if (element) {
+        // Add the class "tooltip"
+        element.classList.add('tooltip');
 
-    // Add the "data-tooltip" attribute
-    element.setAttribute('data-tooltip', 'Toggle actual frequency - previous frequency | Hold longer for deactivating/activating');
-
-    // Set a timeout to remove the tooltip after 2 seconds
-    setTimeout(() => {
-        element.classList.remove('tooltip'); // Remove the tooltip class to hide it
-        // element.style.visibility = 'hidden'; // Hide the tooltip after 2 seconds
-        element.removeAttribute('data-tooltip'); // Remove the data-tooltip attribute
-    }, 2000); // 2000 milliseconds = 2 seconds
-}
-
+        // Add the "data-tooltip" attribute
+        element.setAttribute('data-tooltip', 'Toggle actual frequency - previous frequency  |  Hold longer for deactivating/activating');
+    }
 
     // Find the element with the ID "freq-container"
     const freqContainer = document.getElementById('freq-container');
@@ -1743,9 +1728,10 @@ if (element) {
                     // Ensure the existingDiv is created or updated
                     const existingDiv = ensureExistingDiv(freq_save);
                     if (freq_save !== null) {
+                        existingDiv.style.marginTop = '-7px'; // Adjust the top margin
                         existingDiv.style.position = 'fixed'; // Set the position to fixed
                         existingDiv.style.left = '50%'; // Center horizontally
-                        existingDiv.style.top = '48%'; // Center vertically
+                        existingDiv.style.top = '50%'; // Center vertically
                         existingDiv.style.transform = 'translate(-50%, -50%)'; // Adjust position back to center
                     }
                     
@@ -1783,7 +1769,7 @@ if (element) {
                 timeoutId = setTimeout(() => {
                     openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
                     isFirstUpdateAfterChange = false; // Reset the update flag
-                }, 1500);
+                }, 1000);
             } else if (!isFirstUpdateAfterChange) {
                 // If the frequency has not changed, just update the iframe
                 openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
@@ -1878,7 +1864,7 @@ if (element) {
     function addResizeFunctionality(element) {
         const resizer = document.createElement('div');
         resizer.id = 'resizer';
-        resizer.classList.add('tooltipLeft'); // Klasse hinzufügen
+        resizer.classList.add('tooltip1'); // Klasse hinzufügen
         resizer.setAttribute('data-tooltip', 'Resize Window'); // Daten-Attribut setzen
         resizer.style.width = '10px';
         resizer.style.height = '10px';
