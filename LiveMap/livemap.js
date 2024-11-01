@@ -1,14 +1,15 @@
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.2a)          ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.3)          ///
 ///                                                      ///
-///  by Highpoint                last update: 30.10.24   ///
+///  by Highpoint                last update: 01.11.24   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
 ////////////////////////////////////////////////////////////
 
-let ConsoleDebug = false; // Define ConsoleDebug variable
+let ConsoleDebug = false; 	// Define ConsoleDebug variable
+const FMLIST_OM_ID = ''; 	// If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
 
 ////////////////////////////////////////////////////////////
 
@@ -26,7 +27,7 @@ let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10;
 let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
 (() => {
-    const plugin_version = 'V2.2a';
+    const plugin_version = 'V2.3';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
@@ -34,7 +35,7 @@ let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
     let websocket;
     let iframeContainer = null;
     let LiveMapActive = false;
-    let picode, freq, itu, city, station, pol, distance, ps, stationid, radius, coordinates, LAT, LON;
+    let picode, freq, itu, city, station, pol, distance, ps, stationid, radius, coordinates, azimuth, LAT, LON;
     let stationListContainer;
     let foundPI;
     let foundID;
@@ -207,6 +208,17 @@ body {
     .switch.enabled .slider {
         background-color: green;
     }
+	
+	.icon-hover-effect {
+		color: #D3D3D3; /* Default light gray color */
+		cursor: pointer;
+	}
+
+	.icon-hover-effect:hover {
+		color: var(--color-4); /* Change color to green on hover */
+		text-decoration: none; /* No underline on hover */
+	}
+	
     `;
     document.head.appendChild(style);
 		
@@ -713,6 +725,40 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
         return degrees * (Math.PI / 180);
     }
 
+	// Function to calculate the azimuth (initial bearing) between two geographic points
+	function calculateAzimuth(lat1, lon1, lat2, lon2) {
+		// Convert latitude and longitude from degrees to radians
+		const lat1Rad = lat1 * (Math.PI / 180);
+		const lon1Rad = lon1 * (Math.PI / 180);
+		const lat2Rad = lat2 * (Math.PI / 180);
+		const lon2Rad = lon2 * (Math.PI / 180);
+
+		// Calculate azimuth
+		const deltaLon = lon2Rad - lon1Rad;
+		const y = Math.sin(deltaLon) * Math.cos(lat2Rad);
+		const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) -
+				Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(deltaLon);
+		let azimuth = Math.atan2(y, x) * (180 / Math.PI); // Convert to degrees
+
+		// Normalize the azimuth to 0-360 degrees
+		azimuth = (azimuth + 360) % 360;
+
+		return azimuth; // Azimuth in degrees
+	}
+
+	// Variable to track the window state
+	let FMLISTWindow = null;
+	let isOpenFMLIST = false;
+
+    // Function to open the FMLIST link in a popup window
+    function openFMLISTPage(id, distance, azimuth, itu) {
+        // URL for the website
+        const url = `https://www.fmlist.org/fi_inslog.php?lfd=${id}&qrb=${distance}&qtf=${azimuth}&country=${itu}&omid=${FMLIST_OM_ID}`;
+
+        // Open the link in a popup window
+        FMLISTWindow = window.open(url, "_blank", "width=800,height=820"); // Adjust the window size as needed
+    }	
+
 	async function displayStationData(data, txposLat, txposLon, picode, pol, foundPI) {
         if (!data || !data.locations || typeof data.locations !== 'object') {
             // console.warn('No valid data received for station display.');
@@ -781,6 +827,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
             const distB = Math.abs(b.lat - txposLat) + Math.abs(b.lon - txposLon);
             return distA - distB;
         });
+		
 
         const filteredStations = stationsWithCoordinates.filter(station => {		
         
@@ -805,7 +852,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
         table.style.textAlign = 'left';
 
         filteredStations.forEach(({ station, city, lat, lon, pi, erp, id, itu }) => {
-			
+					
 			if (station.station) {
             
 				const row = document.createElement('tr');
@@ -821,8 +868,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 				const streamCell = document.createElement('td');
 				const streamLink = document.createElement('a');
 				const playIcon = document.createElement('i');
-				playIcon.className = 'fas fa-play';
-				playIcon.style.color = 'green';
+				playIcon.className = 'fas fa-play icon-hover-effect';
 				playIcon.style.cursor = 'pointer';
 				
 				streamLink.appendChild(playIcon);
@@ -939,16 +985,69 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 
 				// Append the ERP cell to the row
 				row.appendChild(erpCell);
-            
+							
+				if (FMLIST_OM_ID !== '') {
+				
+					const fmlistCell = document.createElement('td');
+					const FMLISTButton = document.createElement('a');
+					const fmlistIcon = document.createElement('i');
+
+					// Set the icon class and add the hover effect class
+					fmlistIcon.className = 'fas fa-pen-to-square icon-hover-effect';
+					fmlistIcon.style.cursor = 'pointer';
+
+					// Append the icon to the button
+					FMLISTButton.appendChild(fmlistIcon);
+					FMLISTButton.style.textDecoration = 'none';
+					FMLISTButton.title = 'Entry in the FMLIST logbook';
+
+					// Append the button to the table cell
+					fmlistCell.appendChild(FMLISTButton);
+					fmlistCell.style.paddingLeft = '10px';
+					fmlistCell.style.paddingRight = '20px';
+					fmlistCell.style.width = '5px';
+					fmlistCell.style.maxWidth = '5px';
+					fmlistCell.style.textAlign = 'left';
+
+					// Append the cell to the row
+					row.appendChild(fmlistCell);
+				            		
+					const emptyRow = document.createElement('tr');
+					const emptyCell = document.createElement('td');
+					emptyCell.colSpan = 7; // Anzahl der Spalten anpassen
+					emptyCell.style.height = '2px'; // Höhe der Leerzeile
+					emptyRow.appendChild(emptyCell);
+
+					
+					// Event listener for button click
+					FMLISTButton.addEventListener("click", function () {
+						if (id > 0) {
+							
+							const distanceBetweenPoints = calculateDistance(txposLat, txposLon, lat, lon);	
+							const distance = `${distanceBetweenPoints.toFixed(0)}`;	
+							
+							const azimuthBetweenPoints = calculateAzimuth(txposLat, txposLon, lat, lon);	
+							const azimuth = `${azimuthBetweenPoints.toFixed(0)}`;	
+							
+							// Check if the popup window is already open
+							if (isOpenFMLIST && FMLISTWindow && !FMLISTWindow.closed) {
+								// Close if already open
+								FMLISTWindow.close();
+								isOpenFMLIST = false;
+							} else {
+								// Open if not already open
+								openFMLISTPage(id, distance, azimuth, itu);
+								isOpenFMLIST = true;
+							}
+						} else {
+							sendToast('error', 'Live Map', '${id} is not compatible with FMLIST Database!', false, false);    
+						}
+					});
+					
+				}
+				
 				// Append the row to the table
 				table.appendChild(row);
-			
-				const emptyRow = document.createElement('tr');
-				const emptyCell = document.createElement('td');
-				emptyCell.colSpan = 7; // Anzahl der Spalten anpassen
-				emptyCell.style.height = '2px'; // Höhe der Leerzeile
-				emptyRow.appendChild(emptyCell);
-				table.appendChild(emptyRow);
 				
 			}
 			
@@ -1001,8 +1100,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 						const streamCell = document.createElement('td');
 						const streamLink = document.createElement('a');
 						const playIcon = document.createElement('i');
-						playIcon.className = 'fas fa-play';
-						playIcon.style.color = 'green';
+						playIcon.className = 'fas fa-play icon-hover-effect';
 						playIcon.style.cursor = 'pointer';
 
 						streamLink.appendChild(playIcon);
@@ -1159,6 +1257,68 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 
 						row.appendChild(erpCell);
 
+						if (FMLIST_OM_ID !== '' && stationid === station.id) {
+				
+							const fmlistCell = document.createElement('td');
+							const FMLISTButton = document.createElement('a');
+							const fmlistIcon = document.createElement('i');
+							
+							// Set the icon class and add the hover effect class
+							fmlistIcon.className = 'fas fa-pen-to-square icon-hover-effect';
+							fmlistIcon.style.cursor = 'pointer';
+
+							// Append the icon to the button
+							FMLISTButton.appendChild(fmlistIcon);
+							FMLISTButton.style.textDecoration = 'none';
+							FMLISTButton.title = 'Entry in the FMLIST logbook';
+
+							// Append the button to the table cell
+							fmlistCell.appendChild(FMLISTButton);
+							fmlistCell.style.paddingLeft = '10px';
+							fmlistCell.style.paddingRight = '20px';
+							fmlistCell.style.width = '5px';
+							fmlistCell.style.maxWidth = '5px';
+							fmlistCell.style.textAlign = 'left';
+							row.appendChild(fmlistCell);
+											            
+							// Append the row to the table
+							table.appendChild(row);
+			
+							const emptyRow = document.createElement('tr');
+							const emptyCell = document.createElement('td');
+							emptyCell.colSpan = 7; // Anzahl der Spalten anpassen
+							emptyCell.style.height = '2px'; // Höhe der Leerzeile
+							emptyRow.appendChild(emptyCell);
+							table.appendChild(emptyRow);
+					
+							// Event listener for button click
+							FMLISTButton.addEventListener("click", function () {
+								if (id > 0) {
+							
+									const distanceBetweenPoints = calculateDistance(txposLat, txposLon, cityStation.lat, cityStation.lon);	
+									const distance = `${distanceBetweenPoints.toFixed(0)}`;	
+							
+									const azimuthBetweenPoints = calculateAzimuth(txposLat, txposLon, cityStation.lat, cityStation.lon);	
+									const azimuth = `${azimuthBetweenPoints.toFixed(0)}`;	
+							
+									// Check if the popup window is already open
+									if (isOpenFMLIST && FMLISTWindow && !FMLISTWindow.closed) {
+										// Close if already open
+										FMLISTWindow.close();
+										isOpenFMLIST = false;
+									} else {
+										// Open if not already open
+										openFMLISTPage(id, distance, azimuth, itu);
+										isOpenFMLIST = true;
+									}
+								} else {
+								sendToast('error', 'Live Map', '${id} is not compatible with FMLIST Database!', false, false);    
+								}
+							});
+					
+						}
+						
+						// Append the row to the table
 						table.appendChild(row);
             
 						// Create and append an empty row for spacing
@@ -1212,8 +1372,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 						const streamCell = document.createElement('td');
 						const streamLink = document.createElement('a');
 						const playIcon = document.createElement('i');
-						playIcon.className = 'fas fa-play';
-						playIcon.style.color = 'green';
+						playIcon.className = 'fas fa-play icon-hover-effect';
 						playIcon.style.cursor = 'pointer';
 
 						streamLink.appendChild(playIcon);
@@ -1369,6 +1528,68 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 						}
 
 						row.appendChild(erpCell);
+						
+						if (FMLIST_OM_ID !== '') {
+				
+							const fmlistCell = document.createElement('td');
+							const FMLISTButton = document.createElement('a');
+							const fmlistIcon = document.createElement('i');
+							
+							// Set the icon class and add the hover effect class
+							fmlistIcon.className = 'fas fa-pen-to-square icon-hover-effect';
+							fmlistIcon.style.cursor = 'pointer';
+
+							// Append the icon to the button
+							FMLISTButton.appendChild(fmlistIcon);
+							FMLISTButton.style.textDecoration = 'none';
+							FMLISTButton.title = 'Entry in the FMLIST logbook';
+
+							// Append the button to the table cell
+							fmlistCell.appendChild(FMLISTButton);
+							fmlistCell.style.paddingLeft = '10px';
+							fmlistCell.style.paddingRight = '20px';
+							fmlistCell.style.width = '5px';
+							fmlistCell.style.maxWidth = '5px';
+							fmlistCell.style.textAlign = 'left';
+							row.appendChild(fmlistCell);
+											            
+							// Append the row to the table
+							table.appendChild(row);
+			
+							const emptyRow = document.createElement('tr');
+							const emptyCell = document.createElement('td');
+							emptyCell.colSpan = 7; // Anzahl der Spalten anpassen
+							emptyCell.style.height = '2px'; // Höhe der Leerzeile
+							emptyRow.appendChild(emptyCell);
+							table.appendChild(emptyRow);
+					
+							// Event listener for button click
+							FMLISTButton.addEventListener("click", function () {
+								if (id > 0) {
+							
+									const distanceBetweenPoints = calculateDistance(txposLat, txposLon, cityStation.lat, cityStation.lon);	
+									const distance = `${distanceBetweenPoints.toFixed(0)}`;	
+							
+									const azimuthBetweenPoints = calculateAzimuth(txposLat, txposLon, cityStation.lat, cityStation.lon);	
+									const azimuth = `${azimuthBetweenPoints.toFixed(0)}`;	
+							
+									// Check if the popup window is already open
+									if (isOpenFMLIST && FMLISTWindow && !FMLISTWindow.closed) {
+										// Close if already open
+										FMLISTWindow.close();
+										isOpenFMLIST = false;
+									} else {
+										// Open if not already open
+										openFMLISTPage(id, distance, azimuth, itu);
+										isOpenFMLIST = true;
+									}
+								} else {
+								sendToast('error', 'Live Map', '${id} is not compatible with FMLIST Database!', false, false);    
+								}
+							});
+					
+						}
+						
 
 						table.appendChild(row);
             
