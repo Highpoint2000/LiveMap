@@ -1,3 +1,5 @@
+(() => {
+
 ////////////////////////////////////////////////////////////
 ///                                                      ///
 ///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.3)          ///
@@ -8,25 +10,24 @@
 ///                                                      ///
 ////////////////////////////////////////////////////////////
 
-let ConsoleDebug = false; 	// Define ConsoleDebug variable
+let ConsoleDebug = false; 		// Define ConsoleDebug variable
 const FMLIST_OM_ID = ''; 	// If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
 
 ////////////////////////////////////////////////////////////
 
-// Custom console log function
-function debugLog(...messages) {
-    if (ConsoleDebug) {
-        console.log(...messages);
-    }
-}
+	// Custom console log function
+	function debugLog(...messages) {
+		if (ConsoleDebug) {
+			console.log(...messages);
+		}
+	}
 
-// Define iframe size and position variables
-let iframeWidth = parseInt(localStorage.getItem('iframeWidth')) || 600; 
-let iframeHeight = parseInt(localStorage.getItem('iframeHeight')) || 650; 
-let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
-let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
+	// Define iframe size and position variables
+	let iframeWidth = parseInt(localStorage.getItem('iframeWidth')) || 600; 
+	let iframeHeight = parseInt(localStorage.getItem('iframeHeight')) || 650; 
+	let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
+	let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
-(() => {
     const plugin_version = 'V2.3';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
