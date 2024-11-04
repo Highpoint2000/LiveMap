@@ -28,7 +28,7 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 - Clicking on the green player symbol opens the link to the live stream (FMSCAN login required).
 - Clicking on the location shows all programs at the location, clicking again returns. The frequency displayed in the location list can be clicked directly.
 - To move the web server horizontally, press and hold the LiveMap button and drag and drop!
-- Click on the web server's frequency display to quickly jump to the previous frequency or toggle between two frequencies
+- Click on the web server's frequency display to quickly jump to the previous frequency or toggle between two frequencies, press and hold the left mouse button to deactivate/activate the display
 - For authenticated station: Click TX Location to directly open the fmscan.org website with more information (FMSCAN login required)
 - To use the FMLIST logbook direct link feature, please enter your OMID in the header of the script!
   
