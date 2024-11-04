@@ -4,14 +4,14 @@
 ///                                                      ///
 ///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.3)          ///
 ///                                                      ///
-///  by Highpoint                last update: 01.11.24   ///
+///  by Highpoint                last update: 04.11.24   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
 ////////////////////////////////////////////////////////////
 
 let ConsoleDebug = false; 		// Define ConsoleDebug variable
-const FMLIST_OM_ID = ''; 	// If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
+const FMLIST_OM_ID = '';   		// If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
 
 ////////////////////////////////////////////////////////////
 
@@ -1892,25 +1892,20 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
         debugLog("Restoring toggle state: enabled.");
     }
 
-    // Function to ensure the existingDiv is created or updated
-    function ensureExistingDiv(freq_save) {
-        let existingDiv = freqContainer.querySelector('.text-small.text-gray'); // Check if the div already exists
-
-        if (existingDiv) {
-            existingDiv.textContent = freq_save; // Update the existing div with the previous frequency
-        } else {
-            // Create a new div element for the previous frequency
-            existingDiv = document.createElement('div');
-            existingDiv.className = 'text-small text-gray hide-phone'; // Set the classes of the new div element
-            existingDiv.textContent = freq_save; // Set the text content of the new element to freq_save
-            freqContainer.insertBefore(existingDiv, frequencyElement); // Insert the new div before the frequency element
-        }
-
-        // Set visibility based on the toggle state
-        existingDiv.style.display = isToggleEnabled ? '' : 'none'; // Show or hide based on the toggle state
-        debugLog(isToggleEnabled ? "Showing existingDiv." : "Hiding existingDiv.");
-        return existingDiv; // Return the div for further use if needed
-    }
+    // Define `ensureExistingDiv` function at the start of your code or above `handleWebSocketMessage`
+	function ensureExistingDiv(freq_save) {
+		let existingDiv = freqContainer.querySelector('.text-small.text-gray');
+		if (existingDiv) {
+			existingDiv.textContent = freq_save;
+		} else {
+			existingDiv = document.createElement('div');
+			existingDiv.className = 'text-small text-gray hide-phone';
+			existingDiv.textContent = freq_save;
+			freqContainer.insertBefore(existingDiv, frequencyElement);
+		}
+		existingDiv.style.display = isToggleEnabled ? '' : 'none';
+		return existingDiv;
+	}
 
     // Add long press event listener to freqContainer for toggling visibility and functionality
     freqContainer.addEventListener('mousedown', () => {
