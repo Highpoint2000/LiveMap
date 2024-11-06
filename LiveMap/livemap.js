@@ -10,9 +10,9 @@
 ///                                                      ///
 ////////////////////////////////////////////////////////////
 
-let ConsoleDebug = false; 			// Define ConsoleDebug variable
-const FMLIST_OM_ID = ''; 			// If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
-const PSTRotatorFunctions = false; 	// If you use the PSTRotator plugin, you can activate the control here (default = false)
+let ConsoleDebug = false; 			// Activate/Deactivate console output
+const FMLIST_OM_ID = '8032'; 		// If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
+const PSTRotatorFunctions = true; 	// If you use the PSTRotator plugin, you can activate the control here (default = false)
 
 ////////////////////////////////////////////////////////////
 
@@ -47,7 +47,11 @@ const PSTRotatorFunctions = false; 	// If you use the PSTRotator plugin, you can
 	let isTuneAuthenticated;
 	let ipAddress;
 	
-	// Determine WebSocket protocol and port
+    const currentURL = new URL(window.location.href);
+    const WebserverURL = currentURL.hostname;
+    const WebserverPath = currentURL.pathname.replace(/setup/g, '');
+	let WebserverPORT = currentURL.port || (currentURL.protocol === 'https:' ? '443' : '80'); // Default ports if not specified
+	
     const protocol = currentURL.protocol === 'https:' ? 'wss:' : 'ws:'; // Determine WebSocket protocol
     const WebsocketPORT = WebserverPORT; // Use the same port as HTTP/HTTPS
     const WEBSOCKET_URL = `${protocol}//${WebserverURL}:${WebsocketPORT}${WebserverPath}data_plugins`; // WebSocket URL with /data_plugins
@@ -990,7 +994,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 
 				if	(PSTRotatorFunctions) {
 
-					stationCell.title = `Rotate the rotor to ${city}[${itu}]`;
+					stationCell.title = `Turn the rotor to ${city}[${itu}]`;
 					stationCell.style.cursor = 'pointer';
 
 					stationCell.addEventListener('mouseover', () => {
@@ -1272,7 +1276,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 
 						if	(PSTRotatorFunctions) {
 
-							stationCell.title = `Rotate the rotor to ${city}[${itu}]`;
+							stationCell.title = `Turn the rotor to ${city}[${itu}]`;
 							stationCell.style.cursor = 'pointer';
 
 							stationCell.addEventListener('mouseover', () => {
@@ -1576,7 +1580,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 
 						if	(PSTRotatorFunctions) {
 
-							stationCell.title = `Rotate the rotor to ${city}[${itu}]`;
+							stationCell.title = `Turn the rotor to ${city}[${itu}]`;
 							stationCell.style.cursor = 'pointer';
 
 							stationCell.addEventListener('mouseover', () => {
