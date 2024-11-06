@@ -2,16 +2,17 @@
 
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.3)          ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.4)           ///
 ///                                                      ///
-///  by Highpoint                last update: 04.11.24   ///
+///  by Highpoint                last update: 06.11.24   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
 ////////////////////////////////////////////////////////////
 
-let ConsoleDebug = false; 		// Define ConsoleDebug variable
-const FMLIST_OM_ID = '';   		// If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
+let ConsoleDebug = false; 			// Define ConsoleDebug variable
+const FMLIST_OM_ID = ''; 			// If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
+const PSTRotatorFunctions = false; 	// If you use the PSTRotator plugin, you can activate the control here (default = false)
 
 ////////////////////////////////////////////////////////////
 
@@ -42,7 +43,15 @@ const FMLIST_OM_ID = '';   		// If you want to use the logbook function, enter y
     let foundID;
 	let latTX;
 	let lonTX;
-
+	let ws;
+	let isTuneAuthenticated;
+	let ipAddress;
+	
+	// Determine WebSocket protocol and port
+    const protocol = currentURL.protocol === 'https:' ? 'wss:' : 'ws:'; // Determine WebSocket protocol
+    const WebsocketPORT = WebserverPORT; // Use the same port as HTTP/HTTPS
+    const WEBSOCKET_URL = `${protocol}//${WebserverURL}:${WebsocketPORT}${WebserverPath}data_plugins`; // WebSocket URL with /data_plugins
+	
     // Add custom CSS styles
     const style = document.createElement('style');
     style.innerHTML = `
@@ -222,7 +231,19 @@ body {
 	
     `;
     document.head.appendChild(style);
-		
+
+    // Function to fetch the client's IP address
+    async function fetchIpAddress() {
+        try {
+            const response = await fetch('https://api.ipify.org?format=json');
+            const data = await response.json();
+            return data.ip;
+        } catch (error) {
+            console.error('Failed to fetch IP address:', error);
+            return 'unknown'; // Fallback value
+        }
+    }
+	
 	// Function to add drag-and-drop functionality
 	function addDragFunctionalityToWrapper() {
 		const wrapper = document.getElementById('wrapper');
@@ -746,6 +767,48 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 
 		return azimuth; // Azimuth in degrees
 	}
+	
+
+	async function sendRotorPosition(azimuth) {
+		let ipAddress = await fetchIpAddress();
+	
+		// Check if the WebSocket connection exists
+		if (!ws || ws.readyState === WebSocket.CLOSED) {
+			console.log('Creating a new WebSocket connection...');
+			ws = new WebSocket(WEBSOCKET_URL);
+
+			// Add event listeners for WebSocket events
+			ws.addEventListener('open', function () {
+				console.log('WebSocket connection established.');
+				sendMessage(azimuth); // Send the message when the connection is open
+			});
+
+			ws.addEventListener('error', function (error) {
+				console.error('WebSocket error:', error);
+			});
+
+			ws.addEventListener('close', function () {
+				console.log('WebSocket connection closed.');
+				ws = null; // Clear the WebSocket reference when closed
+			});
+		} else if (ws.readyState === WebSocket.OPEN) {
+			sendMessage(azimuth); // Send the message if the connection is already open
+		} else {
+			console.error('WebSocket is not open. Current state:', ws.readyState);
+		}
+
+		// Function to send the message
+		function sendMessage(azimuth) {
+			const message = JSON.stringify({
+				type: 'Rotor',
+				value: azimuth.toString(),
+				lock: isTuneAuthenticated,
+				source: ipAddress
+			});
+			ws.send(message);
+			console.log('Sent position:', message);
+		}
+	}
 
 	// Variable to track the window state
 	let FMLISTWindow = null;
@@ -924,6 +987,38 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 				stationCell.style.overflow = 'hidden';
 				stationCell.style.whiteSpace = 'nowrap';
 				stationCell.style.textOverflow = 'ellipsis';
+
+				if	(PSTRotatorFunctions) {
+
+					stationCell.title = `Rotate the rotor to ${city}[${itu}]`;
+					stationCell.style.cursor = 'pointer';
+
+					stationCell.addEventListener('mouseover', () => {
+						stationCell.style.textDecoration = 'underline';
+						stationCell.style.color = 'var(--color-5)';
+					});
+				
+					stationCell.addEventListener('mouseout', () => {
+						stationCell.style.textDecoration = 'none';
+						stationCell.style.color = 'white';
+					});
+
+					stationCell.addEventListener('click', () => {
+	
+						if (!isTuneAuthenticated) {
+							sendToast('warning', 'Livemap', 'You must be authenticated to use the PSTRotator feature!', false, false);
+						return;
+						}
+	
+						const azimuthBetweenPoints = calculateAzimuth(txposLat, txposLon, lat, lon);
+						const azimuth = `${azimuthBetweenPoints.toFixed(0)}`;
+    
+						sendToast('info', 'Livemap', `Turn the rotor to ${azimuth} degrees`, false, false);
+						sendRotorPosition(azimuth);
+					});
+
+				}
+
 				row.appendChild(stationCell);
 
 				const cityCell = document.createElement('td');
@@ -1164,8 +1259,8 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 						row.appendChild(piCell);
 
 						const stationCell = document.createElement('td');
-						stationCell.style.maxWidth = '160px';
 						stationCell.innerText = station.station;
+						stationCell.style.maxWidth = '160px';
 						stationCell.style.width = '160px';
 						stationCell.style.paddingLeft = '5px';
 						stationCell.style.paddingRight = '5px';
@@ -1174,6 +1269,38 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 						stationCell.style.overflow = 'hidden';
 						stationCell.style.whiteSpace = 'nowrap';
 						stationCell.style.textOverflow = 'ellipsis';
+
+						if	(PSTRotatorFunctions) {
+
+							stationCell.title = `Rotate the rotor to ${city}[${itu}]`;
+							stationCell.style.cursor = 'pointer';
+
+							stationCell.addEventListener('mouseover', () => {
+								stationCell.style.textDecoration = 'underline';
+								stationCell.style.color = 'var(--color-5)';
+							});
+				
+							stationCell.addEventListener('mouseout', () => {
+								stationCell.style.textDecoration = 'none';
+								stationCell.style.color = 'white';
+							});
+
+								stationCell.addEventListener('click', () => {
+	
+								if (!isTuneAuthenticated) {
+									sendToast('warning', 'Livemap', 'You must be authenticated to use the PSTRotator feature!', false, false);
+									return;
+								}
+	
+								const azimuthBetweenPoints = calculateAzimuth(txposLat, txposLon, cityStation.lat, cityStation.lon);
+								const azimuth = `${azimuthBetweenPoints.toFixed(0)}`;
+    									
+								sendToast('info', 'Livemap', `Turn the rotor to ${azimuth} degrees`, false, false);
+								sendRotorPosition(azimuth);
+							});
+
+						}
+
 						row.appendChild(stationCell);
 
 						// Create and append the city and ITU code cell
@@ -1436,8 +1563,8 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 						row.appendChild(piCell);
 
 						const stationCell = document.createElement('td');
-						stationCell.style.maxWidth = '160px';
 						stationCell.innerText = station.station;
+						stationCell.style.maxWidth = '160px';
 						stationCell.style.width = '160px';
 						stationCell.style.paddingLeft = '5px';
 						stationCell.style.paddingRight = '5px';
@@ -1446,6 +1573,38 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 						stationCell.style.overflow = 'hidden';
 						stationCell.style.whiteSpace = 'nowrap';
 						stationCell.style.textOverflow = 'ellipsis';
+
+						if	(PSTRotatorFunctions) {
+
+							stationCell.title = `Rotate the rotor to ${city}[${itu}]`;
+							stationCell.style.cursor = 'pointer';
+
+							stationCell.addEventListener('mouseover', () => {
+								stationCell.style.textDecoration = 'underline';
+								stationCell.style.color = 'var(--color-5)';
+							});
+				
+							stationCell.addEventListener('mouseout', () => {
+								stationCell.style.textDecoration = 'none';
+								stationCell.style.color = 'white';
+							});
+
+								stationCell.addEventListener('click', () => {
+	
+								if (!isTuneAuthenticated) {
+									sendToast('warning', 'Livemap', 'You must be authenticated to use the PSTRotator feature!', false, false);
+									return;
+								}
+	
+								const azimuthBetweenPoints = calculateAzimuth(txposLat, txposLon, cityStation.lat, cityStation.lon);
+								const azimuth = `${azimuthBetweenPoints.toFixed(0)}`;
+    
+								sendToast('info', 'Livemap', `Turn the rotor to ${azimuth} degrees`, false, false);
+								sendRotorPosition(azimuth);
+							});
+
+						}
+
 						row.appendChild(stationCell);
 
 						// Create and append the city and ITU code cell
@@ -1923,6 +2082,18 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
     freqContainer.addEventListener('mouseleave', () => {
         clearTimeout(longPressTimer); // Clear the timer if the mouse leaves the container before the press is complete
     });
+	
+	// Function to handle sending data
+	function sendFrequencyData() {
+		if (isToggleEnabled) { // Check if the toggle functionality is enabled and data can be sent
+			const dataToSend = `T${(parseFloat(freq_save) * 1000).toFixed(0)}`; // Prepare data to send via WebSocket
+			socket.send(dataToSend); // Send the data using the WebSocket
+			debugLog("WebSocket sending:", dataToSend); // Log the sent data
+		}
+	}
+
+	// Add a click event listener to the frequency element
+	frequencyElement.addEventListener('click', sendFrequencyData);
 
     async function handleWebSocketMessage(event) {
         try {
@@ -1952,23 +2123,6 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
                         existingDiv.style.transform = 'translate(-50%, -50%)'; // Adjust position back to center
                     }
                     
-                    let canSendData = true; // Flag to track if data can be sent
-
-                    // Add a click event listener to the frequency element
-                    frequencyElement.addEventListener('click', () => {
-                        if (isToggleEnabled && canSendData) { // Check if the toggle functionality is enabled and data can be sent
-                            const dataToSend = `T${(parseFloat(freq_save) * 1000).toFixed(0)}`; // Prepare data to send via WebSocket
-                            socket.send(dataToSend); // Send the data using the WebSocket
-                            debugLog("WebSocket sending:", dataToSend); // Log the sent data
-                            canSendData = false; // Set the flag to false to prevent further sends
-                        }
-                    });
-
-                    // Function to toggle visibility and functionality
-                    function toggleFrequencyFunctions() {
-                        isToggleEnabled = !isToggleEnabled; // Toggle the state
-                        canSendData = true; // Reset the sending flag when toggled
-                    }
                 } else {
                     console.error('Element with ID "data-frequency" not found.'); // Log error if element is not found
                 }
@@ -2262,8 +2416,24 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
         LiveMapButton.classList.add('bg-color-2');
         debugLog("LIVEMAP deactivated (default status).");
     }
+	
+	// Function to check if the user is logged in as an administrator
+    function checkAdminMode() {
+        const bodyText = document.body.textContent || document.body.innerText;
+        isAdminLoggedIn = bodyText.includes("You are logged in as an administrator.") || bodyText.includes("You are logged in as an adminstrator.");
+        isTuneLoggedIn = bodyText.includes("You are logged in and can control the receiver.");
 
-    setupWebSocket();
+        if (isAdminLoggedIn) {
+            console.log(`Admin mode found. PSTRotator Plugin Authentication successful.`);
+            isTuneAuthenticated = true;
+        } else if (isTuneLoggedIn) {
+            console.log(`Tune mode found. PSTRotator Plugin Authentication successful.`);
+            isTuneAuthenticated = true;
+        }
+    }
+
+    setupWebSocket(); // Load WebSocket
+	checkAdminMode(); // Check admin mode
 
     document.addEventListener('DOMContentLoaded', function() {
         setTimeout(initializeLiveMapButton, 1000);
