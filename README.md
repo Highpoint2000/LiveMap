@@ -4,12 +4,10 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 
 ![image](https://github.com/user-attachments/assets/20b90cf9-7131-4bf4-b7b2-90672b9ebe54)
 
+## v2.4
 
-### v2.3
-
-- Minor design adjustments
-- Added a direct link for an entry in the FMLIST logbook (enter your OMID in the header of the script!)
-
+- Fixed sending the frequency multiple times
+- Rotor control for PSTRotator plugin integrated
 
 ## Installation notes:
 
@@ -31,8 +29,15 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 - Click on the web server's frequency display to quickly jump to the previous frequency or toggle between two frequencies, press and hold the left mouse button to deactivate/activate the display
 - For authenticated station: Click TX Location to directly open the fmscan.org website with more information (FMSCAN login required)
 - To use the FMLIST logbook direct link feature, please enter your OMID in the header of the script!
+- If the PSTRotator function is activated in the header, you can rotate the rotor in that direction by clicking on the station name
   
 ## History:
+
+### v2.3
+
+- Minor design adjustments
+- Added a direct link for an entry in the FMLIST logbook (enter your OMID in the header of the script!)
+
 
 ### v2.2a
 
