@@ -9,7 +9,7 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 
 - Daily update check for admin
 - Dynamic location determination with GPS (GPS Receiver & [GPS plugin](https://github.com/Highpoint2000/GPS) required!)
-i
+  
 ## Installation notes:
 
 1. 	Download the last repository as a zip
