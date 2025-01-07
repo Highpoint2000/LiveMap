@@ -2,17 +2,18 @@
 
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.4)           ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.5)           ///
 ///                                                      ///
-///  by Highpoint                last update: 06.11.24   ///
+///  by Highpoint                last update: 07.01.25   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
 ////////////////////////////////////////////////////////////
 
 let ConsoleDebug = false; 			// Activate/Deactivate console output
-const FMLIST_OM_ID = '8032'; 		// If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
-const PSTRotatorFunctions = true; 	// If you use the PSTRotator plugin, you can activate the control here (default = false)
+const FMLIST_OM_ID = ''; 			// If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
+const PSTRotatorFunctions = false; 	// If you use the PSTRotator plugin, you can activate the control here (default = false)
+const updateInfo = true; 			// Enable or disable version check
 
 ////////////////////////////////////////////////////////////
 
@@ -29,7 +30,7 @@ const PSTRotatorFunctions = true; 	// If you use the PSTRotator plugin, you can 
 	let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
 	let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
-    const plugin_version = '2.4';
+    const plugin_version = '2.5';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
@@ -43,9 +44,16 @@ const PSTRotatorFunctions = true; 	// If you use the PSTRotator plugin, you can 
     let foundID;
 	let latTX;
 	let lonTX;
+	let Latitude;
+	let Longitude;
 	let ws;
 	let isTuneAuthenticated;
 	let ipAddress;
+	
+	const plugin_path = 'https://raw.githubusercontent.com/highpoint2000/LiveMap/';
+	const plugin_JSfile = 'main/LiveMap/livemap.js'
+	const plugin_name = 'Livemap';
+	const PluginUpdateKey = `${plugin_name}_lastUpdateNotification`; // Unique key for localStorage
 	
     const currentURL = new URL(window.location.href);
     const WebserverURL = currentURL.hostname;
@@ -236,6 +244,84 @@ body {
     `;
     document.head.appendChild(style);
 
+	// Function to check if the notification was shown today
+  function shouldShowNotification() {
+    const lastNotificationDate = localStorage.getItem(PluginUpdateKey);
+    const today = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
+
+    if (lastNotificationDate === today) {
+      return false; // Notification already shown today
+    }
+    // Update the date in localStorage to today
+    localStorage.setItem(PluginUpdateKey, today);
+    return true;
+  }
+
+  // Function to check plugin version
+  function checkplugin_version() {
+    // Fetch and evaluate the plugin script
+    fetch(`${plugin_path}${plugin_JSfile}`)
+      .then(response => response.text())
+      .then(script => {
+        // Search for plugin_version in the external script
+        const plugin_versionMatch = script.match(/const plugin_version = '([\d.]+[a-z]*)?';/);
+        if (!plugin_versionMatch) {
+          console.error(`${plugin_name}: Plugin version could not be found`);
+          return;
+        }
+
+        const externalplugin_version = plugin_versionMatch[1];
+
+        // Function to compare versions
+		function compareVersions(local, remote) {
+			const parseVersion = (version) =>
+				version.split(/(\d+|[a-z]+)/i).filter(Boolean).map((part) => (isNaN(part) ? part : parseInt(part, 10)));
+
+			const localParts = parseVersion(local);
+			const remoteParts = parseVersion(remote);
+
+			for (let i = 0; i < Math.max(localParts.length, remoteParts.length); i++) {
+				const localPart = localParts[i] || 0; // Default to 0 if part is missing
+				const remotePart = remoteParts[i] || 0;
+
+				if (typeof localPart === 'number' && typeof remotePart === 'number') {
+					if (localPart > remotePart) return 1;
+					if (localPart < remotePart) return -1;
+				} else if (typeof localPart === 'string' && typeof remotePart === 'string') {
+					// Lexicographical comparison for strings
+					if (localPart > remotePart) return 1;
+					if (localPart < remotePart) return -1;
+				} else {
+					// Numeric parts are "less than" string parts (e.g., `3.5` < `3.5a`)
+					return typeof localPart === 'number' ? -1 : 1;
+				}
+			}
+
+			return 0; // Versions are equal
+		}
+
+
+        // Check version and show notification if needed
+        const comparisonResult = compareVersions(plugin_version, externalplugin_version);
+        if (comparisonResult === 1) {
+          // Local version is newer than the external version
+          console.log(`${plugin_name}: The local version is newer than the plugin version.`);
+        } else if (comparisonResult === -1) {
+          // External version is newer and notification should be shown
+          if (shouldShowNotification()) {
+            console.log(`${plugin_name}: Plugin update available: ${plugin_version} -> ${externalplugin_version}`);
+			sendToast('warning important', `${plugin_name}`, `Update available:<br>${plugin_version} -> ${externalplugin_version}`, false, false);
+            }
+        } else {
+          // Versions are the same
+          console.log(`${plugin_name}: The local version matches the plugin version.`);
+        }
+      })
+      .catch(error => {
+        console.error(`${plugin_name}: Error fetching the plugin script:`, error);
+      });
+	}
+
     // Function to fetch the client's IP address
     async function fetchIpAddress() {
         try {
@@ -247,6 +333,8 @@ body {
             return 'unknown'; // Fallback value
         }
     }
+	
+	
 	
 	// Function to add drag-and-drop functionality
 	function addDragFunctionalityToWrapper() {
@@ -388,7 +476,7 @@ body {
             }
         }
     }
-
+	
     // WebSocket setup function
     async function setupWebSocket() {
         if (!websocket || websocket.readyState === WebSocket.CLOSED) {
@@ -772,47 +860,102 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 		return azimuth; // Azimuth in degrees
 	}
 	
+function receiveGPS() {;	
+    // Check if the WebSocket connection exists
+    if (!ws || ws.readyState === WebSocket.CLOSED) {
+        console.log('Creating a new WebSocket connection...');
+        ws = new WebSocket(WEBSOCKET_URL);
+
+		// Event listener to receive data
+		ws.addEventListener('message', (event) => {
+		try {
+			const parsedData = JSON.parse(event.data); // Use event.data
+			//console.log(parsedData);
+			if (parsedData.type === "GPS" && parsedData.value) {
+				const gpsData = parsedData.value;
+				const { status, time, lat, lon, alt, mode } = gpsData;
+				if (status === "active") {
+					Latitude = parseFloat(lat);
+					Longitude = parseFloat(lon);
+					//console.log('GPS Data Received:', { Latitude, Longitude });
+				}
+			}
+		} catch (error) {
+			logError("Error processing WebSocket data:", error);
+		}
+	});
+
+	} else if (ws.readyState === WebSocket.OPEN) {
+        sendMessage(azimuth); // Send the message if the connection is already open
+    } else {
+        console.error('WebSocket is not open. Current state:', ws.readyState);
+    }
+};
+	
 
 	async function sendRotorPosition(azimuth) {
-		let ipAddress = await fetchIpAddress();
-	
-		// Check if the WebSocket connection exists
-		if (!ws || ws.readyState === WebSocket.CLOSED) {
-			console.log('Creating a new WebSocket connection...');
-			ws = new WebSocket(WEBSOCKET_URL);
+    let ipAddress = await fetchIpAddress();
 
-			// Add event listeners for WebSocket events
-			ws.addEventListener('open', function () {
-				console.log('WebSocket connection established.');
-				sendMessage(azimuth); // Send the message when the connection is open
-			});
+    // Check if the WebSocket connection exists
+    if (!ws || ws.readyState === WebSocket.CLOSED) {
+        console.log('Creating a new WebSocket connection...');
+        ws = new WebSocket(WEBSOCKET_URL);
 
-			ws.addEventListener('error', function (error) {
-				console.error('WebSocket error:', error);
-			});
+        // Add event listeners for WebSocket events
+        ws.addEventListener('open', function () {
+            console.log('WebSocket connection established.');
+            sendMessage(azimuth); // Send the message when the connection is open
+        });
 
-			ws.addEventListener('close', function () {
-				console.log('WebSocket connection closed.');
-				ws = null; // Clear the WebSocket reference when closed
-			});
-		} else if (ws.readyState === WebSocket.OPEN) {
-			sendMessage(azimuth); // Send the message if the connection is already open
-		} else {
-			console.error('WebSocket is not open. Current state:', ws.readyState);
-		}
+        ws.addEventListener('error', function (error) {
+            console.error('WebSocket error:', error);
+        });
 
-		// Function to send the message
-		function sendMessage(azimuth) {
-			const message = JSON.stringify({
-				type: 'Rotor',
-				value: azimuth.toString(),
-				lock: isTuneAuthenticated,
-				source: ipAddress
-			});
-			ws.send(message);
-			console.log('Sent position:', message);
-		}
-	}
+        ws.addEventListener('close', function () {
+            console.log('WebSocket connection closed.');
+            ws = null; // Clear the WebSocket reference when closed
+        });
+
+        // Add event listener to receive data
+        ws.addEventListener('message', function (event) {
+            try {
+                // Parse the received data
+                const parsedData = JSON.parse(event.data);
+
+                // Check if the dataset is of type GPS
+                if (parsedData.type === "GPS" && parsedData.value) {
+                    const gpsData = parsedData.value;
+                    const { status, time, lat, lon, alt, mode } = gpsData;
+
+                    if (status === "active") {
+                        Latitude = parseFloat(lat);
+                        Longitude = parseFloat(lon);
+                        console.log('Updated GPS Coordinates:', { Latitude, Longitude });
+                    }
+                }
+            } catch (error) {
+                logError("Error processing WebSocket data:", error);
+            }
+        });
+    } else if (ws.readyState === WebSocket.OPEN) {
+        sendMessage(azimuth); // Send the message if the connection is already open
+    } else {
+        console.error('WebSocket is not open. Current state:', ws.readyState);
+    }
+
+    // Function to send the message
+    function sendMessage(azimuth) {
+        const message = JSON.stringify({
+            type: 'Rotor',
+            value: azimuth.toString(),
+            lock: isTuneAuthenticated,
+            source: ipAddress
+        });
+        ws.send(message);
+        console.log('Sent position:', message);
+    }
+}
+
 
 	// Variable to track the window state
 	let FMLISTWindow = null;
@@ -1918,8 +2061,14 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
             debugLog(`openOrUpdateIframe - Found PI: ${foundPI}, Found ID: ${foundID}, Coordinates:`, coordinates);
         }
         
-        LAT = localStorage.getItem('qthLatitude') || '0';
-        LON = localStorage.getItem('qthLongitude') || '0';
+        // Handle Latitude and Longitude assignment
+        if (typeof Latitude === 'undefined' || typeof Longitude === 'undefined') {
+            LAT = localStorage.getItem('qthLatitude') || '0';
+            LON = localStorage.getItem('qthLongitude') || '0';
+        } else {
+             LAT = Latitude;
+             LON = Longitude;
+        }
 
         const txposSwitch = document.getElementById('txposSwitch');
 
@@ -2438,10 +2587,17 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 
     setupWebSocket(); // Load WebSocket
 	checkAdminMode(); // Check admin mode
+	receiveGPS();
 
     document.addEventListener('DOMContentLoaded', function() {
         setTimeout(initializeLiveMapButton, 1000);
     });
+	
+	setTimeout(() => {
+	// Execute the plugin version check if updateInfo is true and admin ist logged on
+	if (updateInfo && isTuneAuthenticated) {
+		checkplugin_version();
+		}
+	}, 200);
+	
 })();
-
-
