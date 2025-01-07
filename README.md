@@ -5,11 +5,11 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 ![image](https://github.com/user-attachments/assets/bbfe6e17-8ea9-4a9b-8df4-12b3ecf72fad)
 
 
-## v2.4
+## v2.5
 
-- Fixed sending the frequency multiple times
-- Rotor control for [PSTRotator plugin](https://github.com/Highpoint2000/PSTRotator) integrated
-
+- Daily update check for admin
+- Dynamic location determination with GPS (GPS Receiver & [GPS plugin](https://github.com/Highpoint2000/GPS) required!)
+i
 ## Installation notes:
 
 1. 	Download the last repository as a zip
@@ -39,8 +39,14 @@ The following variables can be changed in the header of the script:
 - For authenticated station: Click TX Location to directly open the fmscan.org website with more information (FMSCAN login required)
 - To use the FMLIST logbook direct link feature, please enter your OMID in the header of the script!
 - If the PSTRotator function is activated in the header, you can rotate the rotor in that direction by clicking on the station name
+- When GPS data is received, the location is updated dynamically (GPS receiver and [GPS plugin](https://github.com/Highpoint2000/GPS) required!)
   
 ## History:
+
+### v2.4
+
+- Fixed sending the frequency multiple times
+- Rotor control for [PSTRotator plugin](https://github.com/Highpoint2000/PSTRotator) integrated
 
 ### v2.3
 
