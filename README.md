@@ -25,7 +25,7 @@ The following variables can be changed in the header of the script:
     ConsoleDebug = false;        // Activate/Deactivate console output	
     FMLIST_OM_ID = '';           // If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
     PSTRotatorFunctions = false; // If you use the PSTRotator plugin, you can activate the control here (default = false)
-    const updateInfo = true; 	 // Enable or disable version check
+    const updateInfo = true; // Enable or disable version check
 
 ## Important notes: 
 
