@@ -29,7 +29,7 @@ const PSTRotatorFunctions = true; 	// If you use the PSTRotator plugin, you can 
 	let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
 	let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
-    const plugin_version = 'V2.4';
+    const plugin_version = '2.4';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
