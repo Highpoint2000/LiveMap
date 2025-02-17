@@ -2,13 +2,15 @@
 
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.5)           ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.6)           ///
 ///                                                      ///
-///  by Highpoint                last update: 07.01.25   ///
+///  by Highpoint                last update: 17.02.25   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
 ////////////////////////////////////////////////////////////
+
+///  This plugin only works from web server version 1.3.5 !!!
 
 let ConsoleDebug = false; 			// Activate/Deactivate console output
 const FMLIST_OM_ID = ''; 			// If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
@@ -30,7 +32,7 @@ const updateInfo = true; 			// Enable or disable version check
 	let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
 	let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
-    const plugin_version = '2.5';
+    const plugin_version = '2.6';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
@@ -2251,6 +2253,7 @@ function receiveGPS() {;
     async function handleWebSocketMessage(event) {
         try {
             const data = JSON.parse(event.data); // Parse the incoming WebSocket message
+
             picode = data.pi; // Extract pi code from data
             freq = data.freq; // Extract frequency from data
             itu = data.txInfo.itu; // Extract ITU information from transmission info
@@ -2439,137 +2442,141 @@ function receiveGPS() {;
         }
     }
 
-    function initializeLiveMapButton() {
-        const buttonWrapper = document.getElementById('button-wrapper');
-        const LiveMapButton = document.createElement('button');
+ function createButton(buttonId) {
+  (function waitForFunction() {
+    const maxWaitTime = 10000;
+    let functionFound = false;
 
-        LiveMapButton.id = 'LIVEMAP-on-off';
-        LiveMapButton.classList.add('hide-phone');
-        LiveMapButton.setAttribute('aria-label', 'LIVEMAP');
-        LiveMapButton.setAttribute('data-tooltip', 'LIVEMAP on/off');
-        LiveMapButton.innerHTML = '<strong>LIVEMAP</strong>';
-        LiveMapButton.style.marginTop = '16px';
-        LiveMapButton.style.width = '100px';
-        LiveMapButton.classList.add('bg-color-2');
-        LiveMapButton.style.borderRadius = '0px';
-        LiveMapButton.title = `Plugin Version: ${plugin_version}`;
+    const observer = new MutationObserver((mutationsList, observer) => {
+      if (typeof addIconToPluginPanel === 'function') {
+        observer.disconnect();
+        // Create the button using addIconToPluginPanel
+        addIconToPluginPanel(buttonId, "Livemap", "solid", "map", `Plugin Version: ${plugin_version}`);
+        functionFound = true;
 
-        let isLongPress = false;
-        let clickTimeout;
+        const buttonObserver = new MutationObserver(() => {
+          const $pluginButton = $(`#${buttonId}`);
+          if ($pluginButton.length > 0) {
+            $pluginButton.addClass("hide-phone bg-color-2");
+            $pluginButton.prop("title", `Plugin Version: ${plugin_version}`);
 
-        LiveMapButton.addEventListener('mousedown', (event) => {
-            isLongPress = false; // Reset long press state
-            clickTimeout = setTimeout(() => {
-                isLongPress = true; // Mark as long press
-            }, 300); // 300 ms threshold for long press
-        });
+            // Variables for long-press detection
+            let isLongPress = false;
+            let clickTimeout;
 
-        LiveMapButton.addEventListener('mouseup', (event) => {
-            clearTimeout(clickTimeout); // Clear timeout on mouseup
+            // mousedown: Start the timer to detect a long press
+            $pluginButton.on("mousedown", function(event) {
+              isLongPress = false;
+              clickTimeout = setTimeout(() => {
+                isLongPress = true;
+              }, 300); // 300 ms threshold for long press
+            });
 
-            // Only toggle if it was a short click
-            if (!isLongPress) {
+            // mouseup: If it wasn't a long press, toggle LiveMap
+            $pluginButton.on("mouseup", function(event) {
+              clearTimeout(clickTimeout);
+              if (!isLongPress) {
                 LiveMapActive = !LiveMapActive;
                 if (LiveMapActive) {
-                    LiveMapButton.classList.remove('bg-color-2');
-                    LiveMapButton.classList.add('bg-color-4');
-                    debugLog("LIVEMAP activated.");
-
-                    lastPicode = '?';
-                    lastFreq = '0.0';
-                    lastStationId = null;
-
-                    openOrUpdateIframe(lastPicode, lastFreq, lastStationId);
-
-                    setTimeout(() => {
-                        const storedVisibility = localStorage.getItem('stationListVisible');
-
-                        if (stationListContainer) {
-                            if (storedVisibility === 'hidden') {
-                                stationListContainer.style.opacity = '0';
-                                stationListContainer.style.visibility = 'hidden';
-                            } else {
-                                stationListContainer.style.opacity = '1';
-                                stationListContainer.style.visibility = 'visible';
-                                stationListContainer.classList.remove('fade-out');
-                                stationListContainer.classList.add('fade-in');
-                            }
-                        }
-                    }, 200);
+                  // Activation: Add the "active" class
+                  $pluginButton.addClass("active");
+                  debugLog("LIVEMAP activated.");
+                  lastPicode = '?';
+                  lastFreq = '0.0';
+                  lastStationId = null;
+                  openOrUpdateIframe(lastPicode, lastFreq, lastStationId);
+                  setTimeout(() => {
+                    const storedVisibility = localStorage.getItem("stationListVisible");
+                    if (stationListContainer) {
+                      if (storedVisibility === "hidden") {
+                        $(stationListContainer).css({ opacity: 0, visibility: "hidden" });
+                      } else {
+                        $(stationListContainer)
+                          .css({ opacity: 1, visibility: "visible" })
+                          .removeClass("fade-out").addClass("fade-in");
+                      }
+                    }
+                  }, 200);
                 } else {
-                    LiveMapButton.classList.remove('bg-color-4');
-                    LiveMapButton.classList.add('bg-color-2');
-                    debugLog("LIVEMAP deactivated.");
-
-                    if (iframeContainer) {
-                        iframeLeft = parseInt(iframeContainer.style.left);
-                        iframeTop = parseInt(iframeContainer.style.top);
-                        iframeWidth = parseInt(iframeContainer.style.width);
-                        iframeHeight = parseInt(iframeContainer.style.height);
-
-                        localStorage.setItem('iframeLeft', iframeLeft);
-                        localStorage.setItem('iframeTop', iframeTop);
-                        localStorage.setItem('iframeWidth', iframeWidth);
-                        localStorage.setItem('iframeHeight', iframeHeight);
-
-                        const iframes = document.querySelectorAll('iframe');
-                        iframes.forEach(iframe => {
-                            iframe.style.opacity = '0';
-                            iframe.style.transition = 'opacity 0.5s';
-                        });
-
-                        if (stationListContainer) {
-                            stationListContainer.classList.remove('fade-in');
-                            stationListContainer.classList.add('fade-out');
-                            stationListContainer.addEventListener('animationend', function handler() {
-                                stationListContainer.style.opacity = '0';
-                                stationListContainer.style.visibility = 'hidden';
-                                stationListContainer.removeEventListener('animationend', handler);
-                            });
-                        }
-
-                        iframeContainer.classList.add('fade-out');
-                        iframeContainer.addEventListener('animationend', function handler() {
-                            document.body.removeChild(iframeContainer);
-                            iframeContainer = null;
-                            iframeContainer.removeEventListener('animationend', handler);
+                  // Deactivation: Remove the "active" class
+                  $pluginButton.removeClass("active");
+                  debugLog("LIVEMAP deactivated.");
+                  if (iframeContainer) {
+                    iframeLeft = parseInt(iframeContainer.style.left);
+                    iframeTop = parseInt(iframeContainer.style.top);
+                    iframeWidth = parseInt(iframeContainer.style.width);
+                    iframeHeight = parseInt(iframeContainer.style.height);
+                    localStorage.setItem("iframeLeft", iframeLeft);
+                    localStorage.setItem("iframeTop", iframeTop);
+                    localStorage.setItem("iframeWidth", iframeWidth);
+                    localStorage.setItem("iframeHeight", iframeHeight);
+                    $("iframe").each(function() {
+                      $(this).css({ opacity: 0, transition: "opacity 0.5s" });
+                    });
+                    if (stationListContainer) {
+                      $(stationListContainer)
+                        .removeClass("fade-in").addClass("fade-out")
+                        .one("animationend", function() {
+                          $(stationListContainer).css({ opacity: 0, visibility: "hidden" });
                         });
                     }
+                    if (iframeContainer) {
+                      iframeContainer.classList.add("fade-out");
+                      iframeContainer.addEventListener("animationend", function handler() {
+                        document.body.removeChild(iframeContainer);
+                        iframeContainer = null;
+                        iframeContainer.removeEventListener("animationend", handler);
+                      });
+                    }
+                  }
                 }
-            }
+              }
+            });
+
+            // mouseleave: Clear the timer if the mouse leaves the button
+            $pluginButton.on("mouseleave", function() {
+              clearTimeout(clickTimeout);
+            });
+
+            // Once the button is found and set up, disconnect the buttonObserver
+            buttonObserver.disconnect();
+          }
         });
+        buttonObserver.observe(document.body, { childList: true, subtree: true });
+      }
+    });
 
-        LiveMapButton.addEventListener('mouseleave', () => {
-            clearTimeout(clickTimeout); // Clear timeout if the mouse leaves the button
-        });
+    observer.observe(document.body, { childList: true, subtree: true });
 
-        if (buttonWrapper) {
-            LiveMapButton.style.marginLeft = '5px';
-            buttonWrapper.appendChild(LiveMapButton);
-            debugLog('LIVEMAP button successfully added to button-wrapper.');
-        } else {
-            console.error('buttonWrapper element not found. Adding LIVEMAP button to default location.');
-            const wrapperElement = document.querySelector('.tuner-info');
+    setTimeout(() => {
+      observer.disconnect();
+      if (!functionFound) {
+        console.error(`Function addIconToPluginPanel not found after ${maxWaitTime / 1000} seconds.`);
+      }
+    }, maxWaitTime);
+  })();
 
-            if (wrapperElement) {
-                const buttonWrapper = document.createElement('div');
-                buttonWrapper.classList.add('button-wrapper');
-                buttonWrapper.id = 'button-wrapper';
-                buttonWrapper.appendChild(LiveMapButton);
-                wrapperElement.appendChild(buttonWrapper);
-                const emptyLine = document.createElement('br');
-                wrapperElement.appendChild(emptyLine);
-            } else {
-                console.error('Default location not found. Unable to add LIVEMAP button.');
-            }
-        }
-
-        LiveMapActive = false;
-        LiveMapButton.classList.remove('bg-color-4');
-        LiveMapButton.classList.add('bg-color-2');
-        debugLog("LIVEMAP deactivated (default status).");
+  // Additional CSS adjustments for the button
+  const aLivemapCss = `
+    #${buttonId}:hover {
+      color: var(--color-5);
+      filter: brightness(120%);
     }
-	
+    #${buttonId}.active {
+      background-color: var(--color-2) !important;
+      filter: brightness(120%);
+    }
+  `;
+  $("<style>")
+    .prop("type", "text/css")
+    .html(aLivemapCss)
+    .appendTo("head");
+}
+
+// Create the button with the ID 'LIVEMAP-on-off'
+createButton('LIVEMAP-on-off');
+
+
 	// Function to check if the user is logged in as an administrator
     function checkAdminMode() {
         const bodyText = document.body.textContent || document.body.innerText;
