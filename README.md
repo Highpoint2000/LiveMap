@@ -5,10 +5,10 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 ![image](https://github.com/user-attachments/assets/bbfe6e17-8ea9-4a9b-8df4-12b3ecf72fad)
 
 
-## v2.5
+## Version 2.6 (only works from web server version 1.3.5!!!)
 
-- Daily update check for admin
-- Dynamic location determination with GPS (GPS Receiver & [GPS plugin](https://github.com/Highpoint2000/GPS) required!)
+- Design adjustments for web server version 1.3.5
+
   
 ## Installation notes:
 
@@ -43,6 +43,11 @@ The following variables can be changed in the header of the script:
 - When GPS data is received, the location is updated dynamically (GPS receiver and [GPS plugin](https://github.com/Highpoint2000/GPS) required!)
   
 ## History:
+
+### v2.5
+
+- Daily update check for admin
+- Dynamic location determination with GPS (GPS Receiver & [GPS plugin](https://github.com/Highpoint2000/GPS) required!)
 
 ### v2.4
 
