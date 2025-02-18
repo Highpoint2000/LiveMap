@@ -2,9 +2,9 @@
 
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.6)           ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.6a)          ///
 ///                                                      ///
-///  by Highpoint                last update: 17.02.25   ///
+///  by Highpoint                last update: 18.02.25   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
@@ -32,7 +32,7 @@ const updateInfo = true; 			// Enable or disable version check
 	let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
 	let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
-    const plugin_version = '2.6';
+    const plugin_version = '2.6a';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
@@ -336,73 +336,105 @@ body {
         }
     }
 	
-	
-	
-	// Function to add drag-and-drop functionality
-	function addDragFunctionalityToWrapper() {
-		const wrapper = document.getElementById('wrapper');
-		const LiveMapButton = document.getElementById('LIVEMAP-on-off');
+function addDragFunctionalityToWrapper() {
+    const wrapper = document.getElementById('wrapper');
+    const liveMapButton = document.getElementById('LIVEMAP-on-off');
+    const panel = document.querySelector('.panel-100-real');
+    const dashboardPanelDescription = document.getElementById('dashboard-panel-description');
 
-		if (!wrapper || !LiveMapButton) {
-			console.error('Wrapper or LiveMapButton not found.');
-			return;
-		}
+    if (!wrapper || !liveMapButton || !panel || !dashboardPanelDescription) {
+        console.error('Wrapper, LiveMapButton, Panel or dashboard-panel-description not found.');
+        return;
+    }
 
-		let startX = 0; // Start position of the mouse
-		let wrapperStartLeft = 0; // Starting position of the wrapper
+    // Ensure elements are positioned correctly
+    if (!wrapper.style.position) wrapper.style.position = 'relative';
+    if (!panel.style.position) panel.style.position = 'relative';
+    // The dashboardPanelDescription will use margin-left, so no position is needed.
 
-		LiveMapButton.onmousedown = function (e) {
-			e.preventDefault(); // Prevent default action
+    let startX = 0;
+    let wrapperStartLeft = 0;
+    let panelStartLeft = 0;
 
-			// Store the initial position of the mouse
-			startX = e.clientX;
+    liveMapButton.onmousedown = function(e) {
+        e.preventDefault();
+        startX = e.clientX;
+        wrapperStartLeft = parseInt(window.getComputedStyle(wrapper).left, 10) || 0;
+        panelStartLeft = parseInt(window.getComputedStyle(panel).left, 10) || 0;
+        document.onmousemove = onMouseMove;
+        document.onmouseup = onMouseUp;
+    };
 
-			// Save the current position of the wrapper relative to the viewport
-			wrapperStartLeft = parseInt(window.getComputedStyle(wrapper).left, 10) || 0;
+    function onMouseMove(e) {
+        const deltaX = e.clientX - startX;
+        let newLeftPanel = panelStartLeft + deltaX;
 
-			// Set mouse move and mouse up events
-			document.onmousemove = onMouseMove;
-			document.onmouseup = onMouseUp;
-		};
+        // Limit the movement: the wrapper should not go off-screen.
+        const minLeft = 0;
+        const maxLeft = window.innerWidth - wrapper.offsetWidth;
+        newLeftPanel = Math.max(minLeft, Math.min(newLeftPanel, maxLeft));
 
-		function onMouseMove(e) {
-			// Calculate the displacement of the mouse relative to the start position
-			const deltaX = e.clientX - startX;
+        // Set both the panel and dashboardPanelDescription with the same value.
+        panel.style.left = newLeftPanel + 'px';
+        dashboardPanelDescription.style.marginLeft = newLeftPanel + 'px';
 
-			// Calculate the new position of the wrapper
-			let newLeft = wrapperStartLeft + deltaX;
+        // Optionally: move the wrapper as well if desired.
+        wrapper.style.left = Math.max(minLeft, Math.min(wrapperStartLeft + deltaX, maxLeft)) + 'px';
+    }
 
-			// Screen boundaries
-			const minLeft = 0; // Left boundary
-			const maxLeft = window.innerWidth - wrapper.offsetWidth; // Right boundary
+    function onMouseUp() {
+        // Save positions to localStorage
+        localStorage.setItem('panelLeft', panel.style.left);
+        localStorage.setItem('wrapperLeft', wrapper.style.left);
+        // Save the same value for dashboard-panel-description since they must be identical.
+        localStorage.setItem('dashboardPanelMarginLeft', dashboardPanelDescription.style.marginLeft);
+        document.onmousemove = null;
+        document.onmouseup = null;
+    }
+}
 
-			// Set the new position of the wrapper within the boundaries
-			wrapper.style.left = Math.max(minLeft, Math.min(newLeft, maxLeft)) + 'px';
-		}
+addDragFunctionalityToWrapper();
 
-		function onMouseUp() {
-			// Save the horizontal position in localStorage
-			localStorage.setItem('wrapperLeft', wrapper.style.left);
+function initializeWrapperPosition() {
+    const wrapper = document.getElementById('wrapper');
+    const panel = document.querySelector('.panel-100-real');
+    const dashboardPanelDescription = document.getElementById('dashboard-panel-description');
 
-			// Remove event listeners
-			document.onmousemove = null;
-			document.onmouseup = null;
-		}
-	}
+    if (!wrapper || !panel || !dashboardPanelDescription) return;
 
-	// Initialize the position of the wrapper when the page loads
-	function initializeWrapperPosition() {
-		const wrapper = document.getElementById('wrapper');
-		const storedLeft = localStorage.getItem('wrapperLeft');
+    // Ensure the panel is positioned
+    panel.style.position = 'relative';
 
-		if (storedLeft) {
-			wrapper.style.left = storedLeft; // Set the saved horizontal position
-		} else {
-			wrapper.style.left = '0px'; // Set a default position if nothing is saved
-		}
-	}
+    // Retrieve saved positions from localStorage
+    const storedPanelLeft = localStorage.getItem('panelLeft');
+    const storedWrapperLeft = localStorage.getItem('wrapperLeft');
+    // We'll use the same value for the dashboard-panel-description
+    const storedDashboardMarginLeft = localStorage.getItem('dashboardPanelMarginLeft');
 
-	initializeWrapperPosition();
+    // If a saved value exists, apply it to both the panel and the dashboard description
+    if (storedPanelLeft) {
+        panel.style.left = storedPanelLeft;
+        dashboardPanelDescription.style.marginLeft = storedPanelLeft;
+    } else {
+        panel.style.left = '0px';
+        dashboardPanelDescription.style.marginLeft = '0px';
+    }
+
+    if (storedWrapperLeft) {
+        wrapper.style.left = storedWrapperLeft;
+    } else {
+        wrapper.style.left = '0px';
+    }
+}
+
+initializeWrapperPosition();
+
+
+
+
+
+
+
 
 	// Call the initialization and drag functionality setup
 	document.addEventListener('DOMContentLoaded', () => {
