@@ -2,9 +2,9 @@
 
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.6a)          ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.6b)          ///
 ///                                                      ///
-///  by Highpoint                last update: 18.02.25   ///
+///  by Highpoint                last update: 24.04.25   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
@@ -32,7 +32,7 @@ const updateInfo = true; 			// Enable or disable version check
 	let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
 	let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
-    const plugin_version = '2.6a';
+    const plugin_version = '2.6b';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
@@ -180,14 +180,14 @@ body {
         position: relative;
     }
 
-    .switch {
+    .switchTXPOS {
         position: relative;
         display: inline-block;
         width: 34px;
         height: 14px;
     }
 
-    .switch input {
+    .switchTXPOS input {
         opacity: 0;
         width: 0;
         height: 0;
@@ -225,11 +225,11 @@ body {
         transform: translateX(20px);
     }
 
-    .switch.disabled .slider {
+    .switchTXPOS.disabled .slider {
         background-color: red;
     }
 
-    .switch.enabled .slider {
+    .switchTXPOS.enabled .slider {
         background-color: green;
     }
 	
@@ -343,7 +343,7 @@ function addDragFunctionalityToWrapper() {
     const dashboardPanelDescription = document.getElementById('dashboard-panel-description');
 
     if (!wrapper || !liveMapButton || !panel || !dashboardPanelDescription) {
-        console.error('Wrapper, LiveMapButton, Panel or dashboard-panel-description not found.');
+        // console.error('Wrapper, LiveMapButton, Panel or dashboard-panel-description not found.');
         return;
     }
 
@@ -494,19 +494,19 @@ initializeWrapperPosition();
         return toggleButton;
     }
 
-    // Update toggle switch based on stationid
-    function updateToggleSwitch(stationid) {
-        const txposSwitch = document.getElementById('txposSwitch');
-        const toggleSwitch = document.querySelector('.switch');
-        txposSwitch.disabled = false;
+    // Update toggle switchTXPOS based on stationid
+    function updateToggleswitchTXPOS(stationid) {
+        const txposswitchTXPOS = document.getElementById('txposswitchTXPOS');
+        const toggleswitchTXPOS = document.querySelector('.switchTXPOS');
+        txposswitchTXPOS.disabled = false;
 
-        if (txposSwitch) {
+        if (txposswitchTXPOS) {
             if (stationid) {
-                toggleSwitch.classList.add('enabled');
-                toggleSwitch.classList.remove('disabled');
+                toggleswitchTXPOS.classList.add('enabled');
+                toggleswitchTXPOS.classList.remove('disabled');
             } else {
-                toggleSwitch.classList.add('disabled');
-                toggleSwitch.classList.remove('enabled');
+                toggleswitchTXPOS.classList.add('disabled');
+                toggleswitchTXPOS.classList.remove('enabled');
             }
         }
     }
@@ -540,59 +540,61 @@ initializeWrapperPosition();
 
     // Function to create the close button ("X")
     function createCloseButton() {
-        const closeButton = document.createElement('div');
-        closeButton.innerHTML = 'x';
-        closeButton.style.position = 'absolute';
-        closeButton.style.top = '0px';
-        closeButton.style.right = '8px';
-        closeButton.style.cursor = 'pointer';
-        closeButton.style.color = 'white';
-        closeButton.classList.add('bg-color-2');
-        closeButton.style.padding = '4px';
-        closeButton.style.paddingLeft = '15px';
-        closeButton.style.zIndex = '10'; 
-        closeButton.style.fontSize = '20px';
+    const closeButton = document.createElement('div');
+    closeButton.innerHTML = 'x';
+    closeButton.style.position = 'absolute';
+    closeButton.style.top = '0px';
+    closeButton.style.right = '8px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.color = 'white';
+    closeButton.classList.add('bg-color-2');
+    closeButton.style.padding = '4px';
+    closeButton.style.paddingLeft = '15px';
+    closeButton.style.zIndex = '10';
+    closeButton.style.fontSize = '20px';
 
-        closeButton.onclick = () => {
-            iframeLeft = parseInt(iframeContainer.style.left);
-            iframeTop = parseInt(iframeContainer.style.top);
-            iframeWidth = parseInt(iframeContainer.style.width);
-            iframeHeight = parseInt(iframeContainer.style.height);
+    closeButton.onclick = () => {
+        // Speichern der aktuellen Position und Größe
+        iframeLeft = parseInt(iframeContainer.style.left);
+        iframeTop = parseInt(iframeContainer.style.top);
+        iframeWidth = parseInt(iframeContainer.style.width);
+        iframeHeight = parseInt(iframeContainer.style.height);
 
-            localStorage.setItem('iframeLeft', iframeLeft);
-            localStorage.setItem('iframeTop', iframeTop);
-            localStorage.setItem('iframeWidth', iframeWidth);
-            localStorage.setItem('iframeHeight', iframeHeight);
+        localStorage.setItem('iframeLeft', iframeLeft);
+        localStorage.setItem('iframeTop', iframeTop);
+        localStorage.setItem('iframeWidth', iframeWidth);
+        localStorage.setItem('iframeHeight', iframeHeight);
 
-            iframeContainer.classList.add('fade-out');
+        // Animation starten
+        iframeContainer.classList.add('fade-out');
 
-            if (stationListContainer) {
-                stationListContainer.classList.remove('fade-in');
-                stationListContainer.classList.add('fade-out');
-                stationListContainer.addEventListener('animationend', function handler() {
-                    stationListContainer.style.opacity = '0';
-                    stationListContainer.style.visibility = 'hidden';
-                    stationListContainer.removeEventListener('animationend', handler);
-                });
-            }
-
-            iframeContainer.addEventListener('animationend', () => {
-                if (iframeContainer) {
-                    iframeContainer.remove();
-                    iframeContainer = null;
-                }
-
-                const LiveMapButton = document.getElementById('LIVEMAP-on-off');
-                if (LiveMapButton) {
-                    LiveMapButton.classList.remove('bg-color-4');
-                    LiveMapButton.classList.add('bg-color-2');
-                    LiveMapActive = false;
-                }
+        if (stationListContainer) {
+            stationListContainer.classList.remove('fade-in');
+            stationListContainer.classList.add('fade-out');
+            stationListContainer.addEventListener('animationend', function handler() {
+                stationListContainer.style.opacity = '0';
+                stationListContainer.style.visibility = 'hidden';
+                stationListContainer.removeEventListener('animationend', handler);
             });
-        };
+        }
 
-        return closeButton;
-    }
+        // Nach Abschluss der Animation das Element entfernen und Button deaktivieren
+        iframeContainer.addEventListener('animationend', () => {
+            if (iframeContainer) {
+                iframeContainer.remove();
+                iframeContainer = null;
+            }
+            const LiveMapButton = document.getElementById('LIVEMAP-on-off');
+            if (LiveMapButton) {
+                LiveMapButton.classList.remove('active');       // aktive Klasse entfernen
+                LiveMapActive = false;
+            }
+        });
+    };
+
+    return closeButton;
+}
+
 
     // Create iframe element
     function createIframe() {
@@ -613,7 +615,7 @@ initializeWrapperPosition();
         return header;
     }
 
-    // Create the iframe footer with radius options and a toggle switch for TXPOS
+    // Create the iframe footer with radius options and a toggle switchTXPOS for TXPOS
     function createIframeFooter(coordinates) {
 
         const footer = document.createElement('div');
@@ -670,33 +672,33 @@ initializeWrapperPosition();
             }
         });
 
-        const toggleSwitchContainer = document.createElement('div');
-        toggleSwitchContainer.style.display = 'flex';
-        toggleSwitchContainer.style.alignItems = 'center';
-        toggleSwitchContainer.style.marginRight = '10px';
+        const toggleswitchTXPOSContainer = document.createElement('div');
+        toggleswitchTXPOSContainer.style.display = 'flex';
+        toggleswitchTXPOSContainer.style.alignItems = 'center';
+        toggleswitchTXPOSContainer.style.marginRight = '10px';
 
-        const toggleSwitchLabel = document.createElement('label');
-        toggleSwitchLabel.innerHTML = 'TXPOS';
-        toggleSwitchLabel.style.marginLeft = '10px'; 
-        toggleSwitchLabel.style.whiteSpace = 'nowrap'; 
+        const toggleswitchTXPOSLabel = document.createElement('label');
+        toggleswitchTXPOSLabel.innerHTML = 'TXPOS';
+        toggleswitchTXPOSLabel.style.marginLeft = '10px'; 
+        toggleswitchTXPOSLabel.style.whiteSpace = 'nowrap'; 
 
-        const toggleSwitch = document.createElement('label');
-        toggleSwitch.classList.add('switch'); 
+        const toggleswitchTXPOS = document.createElement('label');
+        toggleswitchTXPOS.classList.add('switchTXPOS'); 
 
         const input = document.createElement('input');
         input.type = 'checkbox';
-        input.id = 'txposSwitch';
+        input.id = 'txposswitchTXPOS';
         input.disabled = false;
 
         const slider = document.createElement('span');
         slider.classList.add('slider');
 
-        toggleSwitch.appendChild(input);
-        toggleSwitch.appendChild(slider);
-        toggleSwitchContainer.appendChild(toggleSwitch);
-        toggleSwitchContainer.appendChild(toggleSwitchLabel);
-        footer.appendChild(toggleSwitchContainer);
-        toggleSwitch.classList.add('disabled'); 
+        toggleswitchTXPOS.appendChild(input);
+        toggleswitchTXPOS.appendChild(slider);
+        toggleswitchTXPOSContainer.appendChild(toggleswitchTXPOS);
+        toggleswitchTXPOSContainer.appendChild(toggleswitchTXPOSLabel);
+        footer.appendChild(toggleswitchTXPOSContainer);
+        toggleswitchTXPOS.classList.add('disabled'); 
 		
 		const { lat, lon } = coordinates || {};
 		latTX = lat;
@@ -800,7 +802,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
 
     try {
         let response;
-        const txposSwitch = document.getElementById('txposSwitch');
+        const txposswitchTXPOS = document.getElementById('txposswitchTXPOS');
         const db = await openCacheDB();
         
         // Create a cache key based on the parameters
@@ -821,7 +823,7 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
         }
 
         // If no cached data or data is expired, make the API request
-        if (txposSwitch && txposSwitch.checked) {
+        if (txposswitchTXPOS && txposswitchTXPOS.checked) {
             if (stationid) {
                 response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}`);
                 txposLat = LAT;
@@ -2104,11 +2106,11 @@ function receiveGPS() {;
              LON = Longitude;
         }
 
-        const txposSwitch = document.getElementById('txposSwitch');
+        const txposswitchTXPOS = document.getElementById('txposswitchTXPOS');
 
         let txposLat, txposLon;
         
-        if (txposSwitch && txposSwitch.checked) {
+        if (txposswitchTXPOS && txposswitchTXPOS.checked) {
             txposLat = localStorage.getItem('txposLat') || '0';
             txposLon = localStorage.getItem('txposLon') || '0';
         } else {
@@ -2196,7 +2198,7 @@ function receiveGPS() {;
             lastStationId = stationid;
             lastFreq = freq;
             await fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid, pol, foundPI);
-            updateToggleSwitch(stationid);
+            updateToggleswitchTXPOS(stationid);
         }
     }
 
@@ -2490,7 +2492,6 @@ function receiveGPS() {;
           const $pluginButton = $(`#${buttonId}`);
           if ($pluginButton.length > 0) {
             $pluginButton.addClass("hide-phone bg-color-2");
-            $pluginButton.prop("title", `Plugin Version: ${plugin_version}`);
 
             // Variables for long-press detection
             let isLongPress = false;
@@ -2628,10 +2629,6 @@ createButton('LIVEMAP-on-off');
 	checkAdminMode(); // Check admin mode
 	receiveGPS();
 
-    document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(initializeLiveMapButton, 1000);
-    });
-	
 	setTimeout(() => {
 	// Execute the plugin version check if updateInfo is true and admin ist logged on
 	if (updateInfo && isTuneAuthenticated) {
