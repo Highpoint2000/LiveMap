@@ -1,7 +1,7 @@
 // Plugin configuration, this is used in the administration when plugins are loaded
 var pluginConfig = {
     name: 'LiveMap',
-    version: '2.6b',
+    version: '2.6c',
     author: 'Highpoint',
     frontEndPath: 'LiveMap/livemap.js'
 }

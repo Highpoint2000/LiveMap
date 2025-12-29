@@ -5,11 +5,9 @@ This plugin displays the detected and neighboring broadcast stations in real tim
 ![image](https://github.com/user-attachments/assets/bbfe6e17-8ea9-4a9b-8df4-12b3ecf72fad)
 
 
-## Version 2.6b (only works from web server version 1.3.5!!!)
+## Version 2.6c (only works from web server version 1.3.5!!!)
 
-- Design adjustments for web server version 1.3.7
-- Fixed deselecting the livemap button when closing with x
-- Remove duplicate tooltip information
+- - Direct playback of the live stream without registration
  
 ## Installation notes:
 
@@ -42,6 +40,7 @@ The following variables can be changed in the header of the script:
 - To use the FMLIST logbook direct link feature, please enter your OMID in the header of the script!
 - If the PSTRotator function is activated in the header, you can rotate the rotor in that direction by clicking on the station name
 - When GPS data is received, the location is updated dynamically (GPS receiver and [GPS plugin](https://github.com/Highpoint2000/GPS) required!)
+- Press the play button to play the live stream for audio comparison
   
 ## Contact
 
@@ -51,6 +50,12 @@ If you have any questions, would like to report problems, or have suggestions fo
 
 <details>
 <summary>History</summary>
+
+## Version 2.6b (only works from web server version 1.3.5!!!)
+
+- Design adjustments for web server version 1.3.7
+- Fixed deselecting the livemap button when closing with x
+- Remove duplicate tooltip information
 
 ### Version 2.6a (only works from web server version 1.3.5!!!)
 

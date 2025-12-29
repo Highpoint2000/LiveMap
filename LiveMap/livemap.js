@@ -2,9 +2,9 @@
 
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.6b)          ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.6c)          ///
 ///                                                      ///
-///  by Highpoint                last update: 24.04.25   ///
+///  by Highpoint                last update: 29.12.25   ///
 ///                                                      ///
 ///  https://github.com/Highpoint2000/LiveMap            ///
 ///                                                      ///
@@ -13,8 +13,8 @@
 ///  This plugin only works from web server version 1.3.5 !!!
 
 let ConsoleDebug = false; 			// Activate/Deactivate console output
-const FMLIST_OM_ID = ''; 			// If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
-const PSTRotatorFunctions = false; 	// If you use the PSTRotator plugin, you can activate the control here (default = false)
+const FMLIST_OM_ID = '8032'; 			// If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
+const PSTRotatorFunctions = true; 	// If you use the PSTRotator plugin, you can activate the control here (default = false)
 const updateInfo = true; 			// Enable or disable version check
 
 ////////////////////////////////////////////////////////////
@@ -32,7 +32,7 @@ const updateInfo = true; 			// Enable or disable version check
 	let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
 	let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
-    const plugin_version = '2.6b';
+    const plugin_version = '2.6c';
 	const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
@@ -52,6 +52,10 @@ const updateInfo = true; 			// Enable or disable version check
 	let isTuneAuthenticated;
 	let ipAddress;
 	
+    // Audio Player Variables
+    let audioPlayer = null;
+    let currentStreamId = null;
+
 	const plugin_path = 'https://raw.githubusercontent.com/highpoint2000/LiveMap/';
 	const plugin_JSfile = 'main/LiveMap/livemap.js'
 	const plugin_name = 'Livemap';
@@ -245,6 +249,75 @@ body {
 	
     `;
     document.head.appendChild(style);
+
+    // --- Audio Stream Functions ---
+
+    function playStream(url) {
+        if (!audioPlayer) {
+            audioPlayer = document.createElement('audio');
+            audioPlayer.id = 'fmdx-livemap-player';
+            audioPlayer.autoplay = true;
+            audioPlayer.controls = false;
+            audioPlayer.style.display = 'none';
+            document.body.appendChild(audioPlayer);
+        }
+        audioPlayer.src = url;
+        audioPlayer.play().catch(e => {
+            console.error('Audio play failed:', e);
+            sendToast('error', 'Play Stream', 'Audio playback failed', false, false);
+        });
+    }
+
+    function stopStream() {
+        if (audioPlayer) {
+            audioPlayer.pause();
+            audioPlayer.src = '';
+            audioPlayer.remove();
+            audioPlayer = null;
+        }
+        currentStreamId = null;
+    }
+
+    async function handleStreamClick(id, stationName) {
+        // If clicking the same station, stop it (toggle)
+        if (currentStreamId === id) {
+            stopStream();
+            return;
+        }
+
+        stopStream();
+        sendToast('info', 'Play Stream', `Loading stream for ${stationName}...`, false, false);
+
+        try {
+            const token = '924924';
+            const API_URL = `https://api.fmlist.org/152/fmdxGetStreamById.php?id=${id}&token=${token}`;
+            const domain = window.location.host;
+            const url = `${corsAnywhereUrl}${API_URL}&cb=${Date.now()}&domain=${domain}`;
+
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error(`API-Error ${resp.status}`);
+
+            const streams = await resp.json();
+            if (!Array.isArray(streams) || streams.length === 0) {
+                sendToast('warning important', 'Play Stream', 'No stream URL found!', false, false);
+                return;
+            }
+
+            // Select stream with highest bitrate
+            const best = streams.reduce((a, b) => parseInt(b.bitrate) > parseInt(a.bitrate) ? b : a);
+            
+            playStream(best.linkname);
+            currentStreamId = id;
+
+            sendToast('info important', 'Play Stream',
+                `<div style="max-width:150px;white-space:normal;word-break:break-all;">Playing: ${best.linkname}</div>`,
+                false, false);
+
+        } catch (err) {
+            console.error('Error loading stream:', err);
+            sendToast('error', 'Play Stream', 'Error loading stream data', false, false);
+        }
+    }
 
 	// Function to check if the notification was shown today
   function shouldShowNotification() {
@@ -554,6 +627,9 @@ initializeWrapperPosition();
     closeButton.style.fontSize = '20px';
 
     closeButton.onclick = () => {
+        
+        stopStream(); // Stop stream when closing
+
         // Speichern der aktuellen Position und Größe
         iframeLeft = parseInt(iframeContainer.style.left);
         iframeTop = parseInt(iframeContainer.style.top);
@@ -1119,7 +1195,14 @@ function receiveGPS() {;
 				playIcon.style.cursor = 'pointer';
 				
 				streamLink.appendChild(playIcon);
-				streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
+                // Modified stream link behavior
+				// streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
+                streamLink.href = '#';
+                streamLink.onclick = (e) => {
+                    e.preventDefault();
+                    handleStreamClick(id, station.station);
+                };
+
 				streamLink.style.color = 'green';
 				streamLink.style.textDecoration = 'none';
 				streamLink.title = 'play livestream';
@@ -1383,7 +1466,14 @@ function receiveGPS() {;
 						playIcon.style.cursor = 'pointer';
 
 						streamLink.appendChild(playIcon);
-						streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
+                        // Modified stream link behavior
+						// streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
+                        streamLink.href = '#';
+                        streamLink.onclick = (e) => {
+                            e.preventDefault();
+                            handleStreamClick(id, station.station);
+                        };
+
 						streamLink.style.color = 'green';
 						streamLink.style.textDecoration = 'none';
 						streamLink.title = 'play livestream';
@@ -1687,7 +1777,14 @@ function receiveGPS() {;
 						playIcon.style.cursor = 'pointer';
 
 						streamLink.appendChild(playIcon);
-						streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
+                        // Modified stream link behavior
+						// streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
+                        streamLink.href = '#';
+                        streamLink.onclick = (e) => {
+                            e.preventDefault();
+                            handleStreamClick(id, station.station);
+                        };
+
 						streamLink.style.color = 'green';
 						streamLink.style.textDecoration = 'none';
 						streamLink.title = 'play livestream';
@@ -2287,8 +2384,10 @@ function receiveGPS() {;
     async function handleWebSocketMessage(event) {
         try {
             const data = JSON.parse(event.data); // Parse the incoming WebSocket message
-
-            picode = data.pi; // Extract pi code from data
+			
+			// console.log(data);
+            
+			picode = data.pi; // Extract pi code from data
             freq = data.freq; // Extract frequency from data
             itu = data.txInfo.itu; // Extract ITU information from transmission info
             city = data.txInfo.city; // Extract city from transmission info
@@ -2532,6 +2631,7 @@ function receiveGPS() {;
                   }, 200);
                 } else {
                   // Deactivation: Remove the "active" class
+                  stopStream(); // Stop stream on deactivate
                   $pluginButton.removeClass("active");
                   debugLog("LIVEMAP deactivated.");
                   if (iframeContainer) {
